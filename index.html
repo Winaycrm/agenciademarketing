@@ -924,7 +924,7 @@ textarea { resize: vertical; }
       <label>Decisión</label>
       <div style="display:flex;gap:8px;margin-top:6px;">
         <button id="btn-mp-grabar" class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('grabar')">✅ Grabar</button>
-        <button id="btn-mp-no"     class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('no_grabar')">❌ No grabar</button>
+        <button id="btn-mp-no"     class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('no_grabar')">🎬 Grabado</button>
         <button id="btn-mp-pend"   class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('pendiente')">🤔 Pendiente</button>
       </div>
     </div>
@@ -2210,7 +2210,7 @@ function renderMarcaPersonaTemas() {
   if(!c) return;
   const temas = (cl.marcaPersona && cl.marcaPersona.temas) || [];
   if(!temas.length) { c.innerHTML = '<div class="empty">Sin temas. Agrega el primero.</div>'; return; }
-  const DECS = { grabar:{ cls:'asist-ok', ico:'✅', lbl:'Grabar' }, no_grabar:{ cls:'asist-late', ico:'❌', lbl:'No grabar' }, pendiente:{ cls:'asist-warn', ico:'🤔', lbl:'Pendiente' } };
+  const DECS = { grabar:{ cls:'asist-ok', ico:'✅', lbl:'Grabar' }, no_grabar:{ cls:'asist-ok', ico:'🎬', lbl:'Grabado' }, pendiente:{ cls:'asist-warn', ico:'🤔', lbl:'Pendiente' } };
   c.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
     <thead><tr style="background:var(--card2);">
       <th style="padding:10px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;">Tema</th>
