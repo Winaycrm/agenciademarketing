@@ -350,6 +350,7 @@ textarea { resize: vertical; }
         <select id="l-user">
           <option value="Winay">🏢 Winay (Agencia)</option>
           <option value="Enrique1">👑 Enrique1 (Administrador)</option>
+          <option value="Andrea1">👑 Andrea1 (Administradora)</option>
         </select>
       </div>
       <div class="fg"><label>Contraseña</label><input id="l-pass" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -452,6 +453,7 @@ textarea { resize: vertical; }
         <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#2563eb;display:inline-block;"></span>Enrique</span>
         <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#7c3aed;display:inline-block;"></span>Camila</span>
         <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#dc2626;display:inline-block;"></span>Alejandro</span>
+        <span style="font-size:11px;display:flex;align-items:center;gap:4px;"><span style="width:9px;height:9px;border-radius:50%;background:#f97316;display:inline-block;"></span>Andrea</span>
       </div>
       <!-- Grid semanal con horas -->
       <div id="cal-week" style="overflow:auto;max-height:70vh;border:1px solid var(--border);border-radius:10px;">
@@ -481,6 +483,7 @@ textarea { resize: vertical; }
         <option value="Enrique">Enrique</option>
         <option value="Camila">Camila</option>
         <option value="Alejandro">Alejandro</option>
+        <option value="Andrea">Andrea</option>
       </select>
     </div>
     <div class="fg"><label>Fecha</label><input type="date" id="ev-fecha"></div>
@@ -543,29 +546,27 @@ textarea { resize: vertical; }
   </div>
 
   <div class="tabs" style="flex-wrap:wrap;">
-    <div class="tab active" onclick="tab('biblioteca', this)">📚 Biblioteca</div>
-    <div class="tab" onclick="tab('matrices', this)">🗂️ Matrices</div>
-    <div class="tab" onclick="tab('resultados', this)">📊 Campañas</div>
+    <div class="tab active" onclick="tab('matrizads', this)">🗂️ Matriz Ads</div>
     <div class="tab" onclick="tab('produccion', this)">🎬 Producción</div>
     <div class="tab" onclick="tab('notas', this)">📝 Notas</div>
     <div class="tab" onclick="tab('calendario', this)">📅 Calendario</div>
   </div>
 
-  <!-- BIBLIOTECA -->
-  <div id="t-biblioteca">
-    <div class="row" style="margin-bottom:16px;">
-      <button class="btn btn-primary" onclick="['na-n','na-k','na-e','na-d'].forEach(id=>document.getElementById(id).value='');abrirModal('m-angulo')">+ Nuevo Ángulo</button>
+  <!-- MATRIZ ADS -->
+  <div id="t-matrizads">
+    <div id="mxa-wrap" style="display:flex;gap:0;">
+      <div id="mxa-left" style="flex:1;min-width:0;overflow-x:auto;">
+        <div id="mxa-stats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;"></div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+          <button class="btn btn-primary" onclick="mxaAbrirConcepto()">+ Concepto</button>
+          <button class="btn btn-ghost btn-sm" onclick="mxaExportCSV()">📤 Exportar CSV</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="mxa-table" style="border-collapse:collapse;width:100%;min-width:720px;"></table>
+        </div>
+      </div>
+      <div id="mxa-panel" style="display:none;width:360px;min-width:360px;border-left:1px solid var(--border);margin-left:20px;padding-left:20px;"></div>
     </div>
-    <div id="angulos-list"></div>
-  </div>
-
-  <!-- MATRICES -->
-  <div id="t-matrices" style="display:none;">
-    <div class="row" style="margin-bottom:20px;flex-wrap:wrap;gap:10px;">
-      <button class="btn btn-primary" onclick="abrirNuevaMatriz()">+ Nueva Matriz</button>
-      <button class="btn btn-ghost" onclick="abrirPublicos()">👥 Gestionar Públicos</button>
-    </div>
-    <div id="matrices-list"></div>
   </div>
 
   <!-- PRODUCCIÓN -->
@@ -675,26 +676,63 @@ textarea { resize: vertical; }
     <div id="calendario-list"></div>
   </div>
 
-  <!-- RESULTADOS -->
-  <div id="t-resultados" style="display:none;">
-    <div class="card" style="margin-bottom:20px;">
-      <h2 style="margin-bottom:12px;">📥 Subir CSV de Meta</h2>
-      <p class="muted" style="margin-bottom:16px;">Exporta el reporte de anuncios desde Meta Ads Manager y súbelo aquí. La app cruza los nombres con tu biblioteca automáticamente.</p>
-      <label class="upload-zone">
-        <input type="file" accept=".csv" onchange="procesarCSV(event)">
-        <div style="font-size:32px;margin-bottom:8px;">📂</div>
-        <div style="font-weight:700;margin-bottom:4px;">Haz clic para subir el CSV</div>
-        <div class="muted">Exportado desde Meta Ads Manager</div>
-      </label>
-    </div>
+</div>
 
-    <div id="res-container" style="display:none;">
-      <div class="tabs" style="margin-bottom:16px;">
-        <div class="tab active" onclick="tabRes('angulo',this)">Por Ángulo</div>
-        <div class="tab" onclick="tabRes('sub',this)">Por Sub-ángulo</div>
-        <div class="tab" onclick="tabRes('copy',this)">Por Copy</div>
-      </div>
-      <div id="res-content"></div>
+<!-- MODAL: MXA CONCEPTO -->
+<div class="overlay" id="m-mxa-concepto">
+  <div class="modal">
+    <h2 id="m-mxa-concepto-title">🎯 Nuevo Concepto</h2>
+    <div style="display:flex;gap:10px;">
+      <div class="fg" style="flex:1;"><label>Deseo / Beneficio</label><input id="mxac-deseo" placeholder="Ej: Bajar de peso"></div>
+      <div class="fg" style="flex:1;"><label>Perfil de cliente</label><input id="mxac-perfil" placeholder="Ej: Mamás 30-45"></div>
+    </div>
+    <div class="fg"><label>Ángulo (cómo lo abordas)</label><input id="mxac-angulo" placeholder="Ej: Miedo a verse mal en verano"></div>
+    <div class="fg"><label>Estado</label>
+      <select id="mxac-estado">
+        <option value="pendiente">⏳ Pendiente</option>
+        <option value="testeo">🧪 En testeo</option>
+        <option value="ganador">🏆 Ganador</option>
+        <option value="pausado">⏸️ Pausado</option>
+        <option value="agotado">🔴 Agotado</option>
+        <option value="fatigado">🟠 Fatigado</option>
+      </select>
+    </div>
+    <div class="fl">
+      <button class="btn btn-ghost" onclick="cerrarModal('m-mxa-concepto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="mxaGuardarConcepto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MXA HOOK -->
+<div class="overlay" id="m-mxa-hook">
+  <div class="modal" style="width:520px;">
+    <h2 id="m-mxa-hook-title">🪝 Nuevo Hook</h2>
+    <div class="fg"><label>Formato</label>
+      <select id="mxah-formato" onchange="mxaActualizarNomen()">
+        <option value="imagen">🖼️ Imagen estática</option>
+        <option value="video">🎥 Video</option>
+        <option value="carrusel">📱 Carrusel</option>
+        <option value="ugc">🤳 UGC</option>
+      </select>
+    </div>
+    <div class="fg"><label>Hook / Texto de apertura</label><textarea id="mxah-hook" rows="3" placeholder="La frase que abre el anuncio..." oninput="mxaActualizarNomen()"></textarea></div>
+    <div class="fg"><label>Estado</label>
+      <select id="mxah-estado">
+        <option value="pendiente">⏳ Pendiente</option>
+        <option value="testeo">🧪 En testeo</option>
+        <option value="ganador">🏆 Ganador</option>
+        <option value="pausado">⏸️ Pausado</option>
+        <option value="agotado">🔴 Agotado</option>
+        <option value="fatigado">🟠 Fatigado</option>
+      </select>
+    </div>
+    <div class="fg"><label>Nomenclatura generada</label>
+      <div id="mxah-nomen" style="font-family:monospace;font-size:12px;color:var(--accent);background:#ede9ff;padding:8px 12px;border-radius:8px;"></div>
+    </div>
+    <div class="fl">
+      <button class="btn btn-ghost" onclick="cerrarModal('m-mxa-hook')">Cancelar</button>
+      <button class="btn btn-primary" onclick="mxaGuardarHook()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1230,17 +1268,16 @@ function abrirCliente(id) {
   const svcText = cl.servicio || '';
   const pref = prefijoCl(cl);
   document.getElementById('cl-sub').innerHTML = svcText + (pref ? ` <span style="font-family:monospace;font-size:11px;color:var(--accent);background:#ede9ff;padding:2px 8px;border-radius:20px;margin-left:8px;">${pref}_…</span>` : '');
-  tab('biblioteca', document.querySelector('#v-cliente .tab'));
+  tab('matrizads', document.querySelector('#v-cliente .tab'));
 }
 
 function tab(nombre, el) {
   document.querySelectorAll('#v-cliente > .tabs .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['biblioteca','matrices','resultados','produccion','notas','calendario'].forEach(t => {
+  ['matrizads','produccion','notas','calendario'].forEach(t => {
     document.getElementById('t-'+t).style.display = nombre === t ? 'block' : 'none';
   });
-  if (nombre === 'biblioteca') renderAngulos();
-  if (nombre === 'matrices') renderMatrices();
+  if (nombre === 'matrizads') renderMatrizAds();
   if (nombre === 'produccion') renderProduccion();
   if (nombre === 'notas') renderNotas();
   if (nombre === 'calendario') renderCalendarioCliente();
@@ -3069,6 +3106,7 @@ function eliminarEvento(id) {
 const USUARIOS = [
   { user:'Winay',    pass:'Winay2024',        rol:'empresa',     nombre:'Agencia Winay' },
   { user:'Enrique1', pass:'yopuedosergrande', rol:'empresa',     nombre:'Enrique' },
+  { user:'Andrea1',  pass:'Teamoenrique',    rol:'empresa',     nombre:'Andrea Ponce' },
   { user:'Diana1',   pass:'Diana1',           rol:'trabajador',  nombre:'Diana' },
   { user:'Camila1',  pass:'Camila1',          rol:'supervisor',  nombre:'Camila' },
   { user:'Franklin1',pass:'Franklin1',        rol:'trabajador',  nombre:'Franklin' },
@@ -3101,9 +3139,17 @@ function doLogin() {
   currentUser = usuario;
   sessionStorage.setItem('currentUser', JSON.stringify(usuario));
   document.getElementById('login-overlay').style.display = 'none';
-  document.getElementById('v-clientes').style.display = '';
   actualizarUserChips();
   renderNotifBell();
+  // Redirigir según rol
+  if(usuario.rol === 'empresa') {
+    document.getElementById('v-clientes').style.display = '';
+  } else {
+    // trabajador / supervisor → ir directo a Mis Pendientes
+    document.getElementById('v-clientes').style.display = '';
+    const tabPend = document.getElementById('tab-mis-pendientes');
+    if(tabPend) tabPend.click();
+  }
 }
 
 function logout() {
@@ -3597,7 +3643,7 @@ let calFecha = new Date();
 let calEventos = [];
 let evEditId = null;
 
-const ASIG_COLOR = { Enrique:'#2563eb', Camila:'#7c3aed', Alejandro:'#dc2626' };
+const ASIG_COLOR = { Enrique:'#2563eb', Camila:'#7c3aed', Alejandro:'#dc2626', Andrea:'#f97316' };
 const TIPO_LBL_CAL = { grabacion:'🎥 Grabación', cita:'🤝 Cita', entrega:'📦 Entrega', otro:'📌 Otro' };
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DIAS  = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
@@ -4157,6 +4203,353 @@ Promise.all([load(), cargarEventos()]).then(() => {
   checkVencimientos();
   setInterval(checkVencimientos, 5 * 60 * 1000); // revisar cada 5 min
 });
+
+/* ===================================================
+   MATRIZ ADS — integrada por cliente
+   =================================================== */
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+const MXA_NIVELES = ['N1','N2','N3','N4','N5'];
+const MXA_TIPO    = {N1:'prosp',N2:'prosp',N3:'retar',N4:'retar',N5:'retar'};
+const MXA_LABEL   = {
+  N1:'Inconsciente',N2:'Consciente del Problema',
+  N3:'Consciente de la Solución',N4:'Consciente del Producto',N5:'Listo para Comprar'
+};
+let mxaDetConceptoId = null;
+let mxaDetNivel      = null;
+let mxaEditConceptoId = null;
+let mxaEditHookId     = null;
+
+// ---- DATA HELPERS ----
+function mxaConceptos() { return cl.mxConceptos || []; }
+function mxaHooks(cId, nivel) { return (cl.mxHooks || {})[cId+'_'+nivel] || []; }
+function mxaSetHooks(cId, nivel, arr) {
+  if(!cl.mxHooks) cl.mxHooks = {};
+  cl.mxHooks[cId+'_'+nivel] = arr;
+}
+function mxaFindHook(hId) {
+  if(!cl.mxHooks) return null;
+  for(const key in cl.mxHooks) {
+    const h = cl.mxHooks[key].find(x=>x.id===hId);
+    if(h) return {hook:h, key};
+  }
+  return null;
+}
+
+// ---- NOMENCLATURE ----
+function mxaBuildNomen(concepto, nivel, formato, version) {
+  const clClave = (cl.clave||cl.nombre.slice(0,4)).toUpperCase();
+  const svc = (cl.claveSvc||cl.servicio||'SVC').replace(/\s+/g,'').slice(0,8).toUpperCase();
+  const dp = ((concepto.deseo||'').replace(/\s+/g,'').slice(0,5)+(concepto.perfil||'').replace(/\s+/g,'').slice(0,4)).toUpperCase();
+  const fmtMap = {imagen:'IMG',video:'VID',carrusel:'CAR',ugc:'UGC'};
+  return `${clClave}_${svc}_${dp}_${nivel}_${fmtMap[formato]||'GEN'}_v${version}`;
+}
+
+// ---- RENDER MAIN ----
+function renderMatrizAds() {
+  mxaRenderStats();
+  mxaRenderTable();
+  if(mxaDetConceptoId) mxaRenderPanel();
+  else document.getElementById('mxa-panel').style.display='none';
+}
+
+function mxaRenderStats() {
+  const conceptos = mxaConceptos();
+  let g=0,t=0,p=0,tot=0;
+  conceptos.forEach(c=>{
+    if(c.estado==='ganador') g++;
+    else if(c.estado==='testeo') t++;
+    else p++;
+    MXA_NIVELES.forEach(n=>{ tot+=mxaHooks(c.id,n).length; });
+  });
+  const statStyle='background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 18px;';
+  document.getElementById('mxa-stats').innerHTML = `
+    <div style="${statStyle}"><div style="font-size:22px;font-weight:800;">${conceptos.length}</div><div class="muted">Conceptos</div></div>
+    <div style="${statStyle}"><div style="font-size:22px;font-weight:800;color:#16a34a;">${g}</div><div class="muted">Ganadores</div></div>
+    <div style="${statStyle}"><div style="font-size:22px;font-weight:800;color:#d97706;">${t}</div><div class="muted">En testeo</div></div>
+    <div style="${statStyle}"><div style="font-size:22px;font-weight:800;color:var(--muted);">${p}</div><div class="muted">Pendientes</div></div>
+    <div style="${statStyle}"><div style="font-size:22px;font-weight:800;color:var(--accent);">${tot}</div><div class="muted">Total hooks</div></div>`;
+}
+
+function mxaRenderTable() {
+  const conceptos = mxaConceptos();
+  const tbl = document.getElementById('mxa-table');
+  const thBase = 'padding:9px 10px;border:1px solid var(--border);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;text-align:center;';
+  const thProsp = thBase+'background:#fff8ed;color:#b45309;';
+  const thRetar = thBase+'background:#f0fdf4;color:#166534;';
+  const thGray  = thBase+'background:#f5f6fa;color:var(--muted);min-width:200px;text-align:left;';
+
+  let html = `<thead>
+    <tr>
+      <th style="${thGray}" rowspan="2">CONCEPTO</th>
+      <th style="${thProsp}" colspan="2">🔥 PROSPECCIÓN<br><span style="font-size:9px;font-weight:400;">Audiencias frías</span></th>
+      <th style="${thRetar}" colspan="3">✅ RETARGETING<br><span style="font-size:9px;font-weight:400;">Audiencias calientes</span></th>
+    </tr>
+    <tr>
+      ${MXA_NIVELES.map(n=>`<th style="${MXA_TIPO[n]==='prosp'?thProsp:thRetar}">${n}<br><span style="font-size:9px;font-weight:400;">${MXA_LABEL[n].split(' ').slice(0,2).join(' ')}</span></th>`).join('')}
+    </tr>
+  </thead><tbody>`;
+
+  if(!conceptos.length) {
+    html += `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Agrega tu primer concepto con el botón de arriba</td></tr>`;
+  } else {
+    conceptos.forEach(c=>{
+      const estadoColors = {ganador:'#16a34a',testeo:'#d97706',pausado:'#ea580c',agotado:'#dc2626',fatigado:'#f87171',pendiente:'#9ca3af'};
+      const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${estadoColors[c.estado]||'#9ca3af'};margin-right:6px;flex-shrink:0;"></span>`;
+      const prog = mxaConceptoProgress(c.id);
+      html += `<tr>
+        <td style="padding:12px 14px;border:1px solid var(--border);background:#fff;min-width:200px;vertical-align:top;">
+          <div style="display:flex;align-items:flex-start;gap:6px;">
+            ${dot}
+            <div style="flex:1;">
+              <div style="font-weight:700;font-size:13px;">${esc(c.deseo)} × ${esc(c.perfil)}</div>
+              ${c.angulo?`<div style="font-size:11px;color:var(--accent);margin-top:2px;">${esc(c.angulo)}</div>`:''}
+              <div style="height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;">
+                <div style="height:100%;width:${prog}%;background:#16a34a;border-radius:2px;"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:3px;">
+                <span style="font-size:9px;color:var(--muted);">${prog}%</span>
+                <span>
+                  <button onclick="mxaEditarConcepto('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px;">✏️</button>
+                  <button onclick="mxaEliminarConcepto('${c.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:11px;padding:0 2px;">🗑</button>
+                </span>
+              </div>
+            </div>
+          </div>
+        </td>
+        ${MXA_NIVELES.map(n=>{
+          const hooks = mxaHooks(c.id,n);
+          const isActive = mxaDetConceptoId===c.id && mxaDetNivel===n;
+          const bgProp = MXA_TIPO[n]==='prosp' ? '#fff8ed' : '#f0fdf4';
+          const bgActive = MXA_TIPO[n]==='prosp' ? '#fde68a' : '#bbf7d0';
+          const gan = hooks.filter(h=>h.estado==='ganador').length;
+          return `<td style="padding:12px 8px;border:1px solid var(--border);text-align:center;cursor:pointer;background:${isActive?bgActive:bgProp};transition:background .15s;vertical-align:middle;"
+                      onclick="mxaAbrirCelda('${c.id}','${n}')">
+            ${hooks.length>0 ? `
+              <div style="font-size:22px;font-weight:800;color:#1a1a2e;">${hooks.length}</div>
+              <div style="font-size:10px;color:var(--muted);">hook${hooks.length>1?'s':''}</div>
+              ${gan>0?`<div style="font-size:10px;color:#16a34a;">★ ${gan}</div>`:''}
+            ` : `<div style="font-size:18px;color:#d1d5db;">+</div>`}
+          </td>`;
+        }).join('')}
+      </tr>`;
+    });
+  }
+  html += `</tbody>`;
+  tbl.innerHTML = html;
+}
+
+function mxaConceptoProgress(cId) {
+  let done=0;
+  MXA_NIVELES.forEach(n=>{ if(mxaHooks(cId,n).length>0) done++; });
+  return Math.round(done/MXA_NIVELES.length*100);
+}
+
+// ---- CELL / PANEL ----
+function mxaAbrirCelda(cId, nivel) {
+  if(mxaDetConceptoId===cId && mxaDetNivel===nivel) {
+    mxaDetConceptoId=null; mxaDetNivel=null;
+  } else {
+    mxaDetConceptoId=cId; mxaDetNivel=nivel;
+  }
+  renderMatrizAds();
+}
+
+function mxaRenderPanel() {
+  const panel = document.getElementById('mxa-panel');
+  panel.style.display='block';
+  const c = mxaConceptos().find(x=>x.id===mxaDetConceptoId);
+  if(!c){ panel.style.display='none'; return; }
+  const hooks = mxaHooks(mxaDetConceptoId, mxaDetNivel);
+  const nivel = mxaDetNivel;
+  const tipo = MXA_TIPO[nivel];
+  const gan = hooks.filter(h=>h.estado==='ganador').length;
+
+  const estadoBadge = {
+    ganador:'background:#dcfce7;color:#166534;',
+    testeo:'background:#fef9c3;color:#854d0e;',
+    pendiente:'background:#f3f4f6;color:#374151;',
+    pausado:'background:#ffedd5;color:#9a3412;',
+    agotado:'background:#fee2e2;color:#991b1b;',
+    fatigado:'background:#fee2e2;color:#b91c1c;'
+  };
+
+  let html = `
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+      <div style="flex:1;">
+        <div style="font-weight:700;font-size:14px;">${nivel}: ${MXA_LABEL[nivel]}</div>
+        <div style="font-size:11px;color:var(--muted);">${esc(c.deseo)} × ${esc(c.perfil)}</div>
+      </div>
+      <button onclick="mxaDetConceptoId=null;mxaDetNivel=null;renderMatrizAds();" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:20px;line-height:1;">×</button>
+    </div>
+    ${tipo==='prosp' && gan===0 && hooks.length>0 ? `<div style="background:#ede9ff;color:var(--accent);padding:8px 12px;border-radius:8px;font-size:12px;margin-bottom:12px;">⚡ Sin ganadores — prueba los mejores ${Math.min(2,hooks.length)} hooks</div>` : ''}`;
+
+  if(!hooks.length) {
+    html += `<div style="text-align:center;padding:30px 0;color:var(--muted);font-size:13px;">Sin hooks para este nivel</div>`;
+  } else {
+    hooks.forEach((h,i)=>{
+      const bs = estadoBadge[h.estado]||estadoBadge.pendiente;
+      html += `<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;cursor:pointer;"
+                    onclick="mxaAbrirEditHook('${h.id}')">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+          <span style="font-size:10px;color:var(--muted);">#${i+1}</span>
+          <span style="background:#f3f4f6;color:var(--muted);font-size:10px;padding:2px 7px;border-radius:12px;">${h.formato}</span>
+          <span style="margin-left:auto;font-size:10px;padding:2px 7px;border-radius:12px;${bs}">${h.estado}</span>
+          <button onclick="event.stopPropagation();mxaEliminarHook('${h.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:0;">🗑</button>
+        </div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.5;">${esc((h.hook||'').slice(0,80))}${(h.hook||'').length>80?'…':''}</div>
+        <div style="font-family:monospace;font-size:10px;color:var(--accent);margin-top:4px;opacity:.7;">${esc(h.nomen||'')}</div>
+      </div>`;
+    });
+  }
+  html += `<button class="btn btn-primary" style="width:100%;margin-top:4px;" onclick="mxaAbrirNuevoHook()">+ Agregar hook</button>`;
+  panel.innerHTML = html;
+}
+
+// ---- CONCEPTO CRUD ----
+function mxaAbrirConcepto() {
+  mxaEditConceptoId = null;
+  document.getElementById('m-mxa-concepto-title').textContent = '🎯 Nuevo Concepto';
+  ['mxac-deseo','mxac-perfil','mxac-angulo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mxac-estado').value='pendiente';
+  abrirModal('m-mxa-concepto');
+}
+function mxaEditarConcepto(cId) {
+  mxaEditConceptoId = cId;
+  const c = mxaConceptos().find(x=>x.id===cId);
+  document.getElementById('m-mxa-concepto-title').textContent = '✏️ Editar Concepto';
+  document.getElementById('mxac-deseo').value = c.deseo;
+  document.getElementById('mxac-perfil').value = c.perfil;
+  document.getElementById('mxac-angulo').value = c.angulo||'';
+  document.getElementById('mxac-estado').value = c.estado||'pendiente';
+  abrirModal('m-mxa-concepto');
+}
+function mxaGuardarConcepto() {
+  const deseo = document.getElementById('mxac-deseo').value.trim();
+  const perfil = document.getElementById('mxac-perfil').value.trim();
+  if(!deseo||!perfil){ alert('Completa deseo y perfil'); return; }
+  if(!cl.mxConceptos) cl.mxConceptos = [];
+  if(mxaEditConceptoId) {
+    const c = cl.mxConceptos.find(x=>x.id===mxaEditConceptoId);
+    c.deseo = deseo; c.perfil = perfil;
+    c.angulo = document.getElementById('mxac-angulo').value.trim();
+    c.estado = document.getElementById('mxac-estado').value;
+  } else {
+    cl.mxConceptos.push({ id:uid(), deseo, perfil,
+      angulo: document.getElementById('mxac-angulo').value.trim(),
+      estado: document.getElementById('mxac-estado').value });
+  }
+  save(); cerrarModal('m-mxa-concepto'); renderMatrizAds();
+}
+function mxaEliminarConcepto(cId) {
+  if(!confirm('¿Eliminar este concepto y todos sus hooks?')) return;
+  cl.mxConceptos = (cl.mxConceptos||[]).filter(c=>c.id!==cId);
+  if(cl.mxHooks) MXA_NIVELES.forEach(n=>{ delete cl.mxHooks[cId+'_'+n]; });
+  if(mxaDetConceptoId===cId){ mxaDetConceptoId=null; mxaDetNivel=null; }
+  save(); renderMatrizAds();
+}
+
+// ---- HOOK CRUD ----
+function mxaAbrirNuevoHook() {
+  mxaEditHookId = null;
+  document.getElementById('m-mxa-hook-title').textContent = '🪝 Nuevo Hook';
+  document.getElementById('mxah-hook').value = '';
+  document.getElementById('mxah-formato').value = 'imagen';
+  document.getElementById('mxah-estado').value = 'pendiente';
+  mxaActualizarNomen();
+  abrirModal('m-mxa-hook');
+}
+function mxaAbrirEditHook(hId) {
+  mxaEditHookId = hId;
+  const r = mxaFindHook(hId); if(!r) return;
+  const h = r.hook;
+  document.getElementById('m-mxa-hook-title').textContent = '✏️ Editar Hook';
+  document.getElementById('mxah-hook').value = h.hook||'';
+  document.getElementById('mxah-formato').value = h.formato||'imagen';
+  document.getElementById('mxah-estado').value = h.estado||'pendiente';
+  mxaActualizarNomen();
+  abrirModal('m-mxa-hook');
+}
+function mxaRenderFormatFields() { /* simplificado */ }
+function mxaActualizarNomen() {
+  if(!mxaDetConceptoId||!mxaDetNivel) return;
+  const c = mxaConceptos().find(x=>x.id===mxaDetConceptoId);
+  if(!c) return;
+  const fmt = document.getElementById('mxah-formato').value;
+  const existing = mxaHooks(mxaDetConceptoId, mxaDetNivel).length;
+  const nomen = mxaBuildNomen(c, mxaDetNivel, fmt, mxaEditHookId ? '' : existing+1);
+  document.getElementById('mxah-nomen').textContent = nomen;
+}
+function mxaBuildContenido(fmt) {
+  if(fmt==='imagen') return {
+    headline: (document.getElementById('mxaf-headline')||{}).value||'',
+    body: (document.getElementById('mxaf-body')||{}).value||'',
+    cta: (document.getElementById('mxaf-cta')||{}).value||''
+  };
+  if(fmt==='video'||fmt==='ugc') return {
+    guion: (document.getElementById('mxaf-guion')||{}).value||'',
+    musica: (document.getElementById('mxaf-musica')||{}).value||''
+  };
+  if(fmt==='carrusel') return {
+    c1: (document.getElementById('mxaf-c1')||{}).value||'',
+    cuerpo: (document.getElementById('mxaf-cuerpo')||{}).value||'',
+    cta: (document.getElementById('mxaf-cta')||{}).value||''
+  };
+  return {};
+}
+function mxaGuardarHook() {
+  const hook = document.getElementById('mxah-hook').value.trim();
+  if(!hook){ alert('Escribe el hook de apertura'); return; }
+  const fmt = document.getElementById('mxah-formato').value;
+  const estado = document.getElementById('mxah-estado').value;
+  const c = mxaConceptos().find(x=>x.id===mxaDetConceptoId);
+  if(!c) return;
+
+  if(mxaEditHookId) {
+    const r = mxaFindHook(mxaEditHookId);
+    if(r){ r.hook.formato=fmt; r.hook.hook=hook; r.hook.estado=estado; }
+  } else {
+    const existing = mxaHooks(mxaDetConceptoId, mxaDetNivel);
+    const nomen = mxaBuildNomen(c, mxaDetNivel, fmt, existing.length+1);
+    mxaSetHooks(mxaDetConceptoId, mxaDetNivel, [...existing, {
+      id:uid(), formato:fmt, hook, estado,
+      nomen, version: existing.length+1, listo:false
+    }]);
+  }
+  save(); cerrarModal('m-mxa-hook'); renderMatrizAds();
+}
+function mxaEliminarHook(hId) {
+  if(!confirm('¿Eliminar este hook?')) return;
+  if(!cl.mxHooks) return;
+  for(const key in cl.mxHooks) {
+    const idx = cl.mxHooks[key].findIndex(h=>h.id===hId);
+    if(idx>=0){ cl.mxHooks[key].splice(idx,1); break; }
+  }
+  save(); renderMatrizAds();
+}
+
+// ---- CSV EXPORT ----
+function mxaExportCSV() {
+  const conceptos = mxaConceptos();
+  let rows = [['Cliente','Servicio','Deseo','Perfil','Ángulo','Estado concepto','Nivel','Hook','Tipo','Formato','Estado hook','Nomenclatura']];
+  conceptos.forEach(c=>{
+    MXA_NIVELES.forEach(n=>{
+      const hooks = mxaHooks(c.id,n);
+      if(!hooks.length) {
+        rows.push([cl.nombre,cl.servicio||'',c.deseo,c.perfil,c.angulo||'',c.estado,n,'','','','','']);
+      } else {
+        hooks.forEach(h=>{
+          rows.push([cl.nombre,cl.servicio||'',c.deseo,c.perfil,c.angulo||'',c.estado,n,h.hook,h.tipo,h.formato,h.estado,h.nomen||'']);
+        });
+      }
+    });
+  });
+  const csv = rows.map(r=>r.map(cell=>`"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv'}));
+  a.download = `matriz-${cl.nombre.replace(/\s/g,'-')}.csv`;
+  a.click();
+}
+/* === FIN MATRIZ ADS === */
 </script>
 </body>
 </html>
