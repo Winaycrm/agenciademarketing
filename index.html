@@ -4621,8 +4621,14 @@ function mxaActualizarNomen() {
   const c = mxaConceptos().find(x=>x.id===mxaDetConceptoId);
   if(!c) return;
   const fmt = document.getElementById('mxah-formato').value;
-  const existing = mxaHooks(mxaDetConceptoId, mxaDetNivel).length;
-  const nomen = mxaBuildNomen(c, mxaDetNivel, fmt, mxaEditHookId ? '' : existing+1);
+  let version;
+  if(mxaEditHookId) {
+    const r = mxaFindHook(mxaEditHookId);
+    version = r ? r.hook.version : '';
+  } else {
+    version = mxaHooks(mxaDetConceptoId, mxaDetNivel).length + 1;
+  }
+  const nomen = mxaBuildNomen(c, mxaDetNivel, fmt, version);
   document.getElementById('mxah-nomen').textContent = nomen;
 }
 function mxaBuildContenido(fmt) {
