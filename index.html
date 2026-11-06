@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8">
@@ -592,7 +592,7 @@ textarea { resize: vertical; }
           <h2>🔍 Investigación de Temas</h2>
           <button class="btn btn-primary btn-sm" onclick="abrirNuevoTema()">+ Nuevo Tema</button>
         </div>
-        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Registra el tema, revisa el volumen de likes en TikTok y decide si lo grabas o no.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Registra el tema, revisa la cantidad de me gustas y el volumen de búsquedas, y decide si lo grabas o no.</div>
         <div id="mp-temas-list"></div>
       </div>
       <!-- PRODUCCIÓN MARCA PERSONA -->
@@ -1005,7 +1005,10 @@ textarea { resize: vertical; }
   <div class="modal">
     <h2>🔍 Nuevo Tema de Contenido</h2>
     <div class="fg"><label>Tema / Idea de video</label><input id="mp-tema" placeholder="Ej: 5 errores al contratar un abogado..."></div>
-    <div class="fg"><label>Volumen TikTok (likes promedio en ese tema)</label><input id="mp-volumen" placeholder="Ej: 50K, 200K, 1M..."></div>
+    <div style="display:flex;gap:10px;">
+      <div class="fg" style="flex:1;"><label>❤️ Cantidad de Me Gustas</label><input id="mp-megustas" placeholder="Ej: 50K, 200K, 1M..."></div>
+      <div class="fg" style="flex:1;"><label>🔍 Volumen de búsquedas</label><input id="mp-volumen" placeholder="Ej: Alto, Medio, 10K/mes..."></div>
+    </div>
     <div class="fg">
       <label>Decisión</label>
       <div style="display:flex;gap:8px;margin-top:6px;">
@@ -2236,6 +2239,7 @@ function agregarLinkTema() {
 function abrirNuevoTema() {
   mpEditId = null; mpDecision = 'pendiente'; mpLinks = [];
   document.getElementById('mp-tema').value = '';
+  document.getElementById('mp-megustas').value = '';
   document.getElementById('mp-volumen').value = '';
   document.getElementById('mp-notas').value = '';
   renderLinksTema();
@@ -2250,9 +2254,9 @@ function guardarTema() {
   if(!cl.marcaPersona.temas) cl.marcaPersona.temas = [];
   if(mpEditId) {
     const t = cl.marcaPersona.temas.find(t => t.id === mpEditId);
-    if(t) { t.tema = tema; t.volumenTiktok = document.getElementById('mp-volumen').value; t.decision = mpDecision; t.notas = document.getElementById('mp-notas').value; t.links = [...mpLinks]; }
+    if(t) { t.tema = tema; t.megustas = document.getElementById('mp-megustas').value; t.volumenTiktok = document.getElementById('mp-volumen').value; t.decision = mpDecision; t.notas = document.getElementById('mp-notas').value; t.links = [...mpLinks]; }
   } else {
-    cl.marcaPersona.temas.push({ id:uid(), tema, volumenTiktok: document.getElementById('mp-volumen').value, decision: mpDecision, notas: document.getElementById('mp-notas').value, links: [...mpLinks] });
+    cl.marcaPersona.temas.push({ id:uid(), tema, megustas: document.getElementById('mp-megustas').value, volumenTiktok: document.getElementById('mp-volumen').value, decision: mpDecision, notas: document.getElementById('mp-notas').value, links: [...mpLinks] });
   }
   save(); cerrarModal('m-tema'); renderMarcaPersonaTemas();
 }
@@ -2264,6 +2268,7 @@ function editarTema(id) {
   mpEditId = id; mpDecision = t.decision || 'pendiente';
   mpLinks = [...(t.links || [])];
   document.getElementById('mp-tema').value = t.tema;
+  document.getElementById('mp-megustas').value = t.megustas || '';
   document.getElementById('mp-volumen').value = t.volumenTiktok || '';
   document.getElementById('mp-notas').value = t.notas || '';
   renderLinksTema();
@@ -2299,7 +2304,8 @@ function renderMarcaPersonaTemas() {
   c.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
     <thead><tr style="background:var(--card2);">
       <th style="padding:10px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;">Tema</th>
-      <th style="padding:10px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;">Volumen TikTok</th>
+      <th style="padding:10px;text-align:center;font-size:11px;font-weight:800;text-transform:uppercase;">❤️ Me Gustas</th>
+      <th style="padding:10px;text-align:center;font-size:11px;font-weight:800;text-transform:uppercase;">🔍 Vol. Búsquedas</th>
       <th style="padding:10px;text-align:center;font-size:11px;font-weight:800;text-transform:uppercase;">Decisión</th>
       <th style="padding:10px;text-align:center;font-size:11px;font-weight:800;text-transform:uppercase;">Acción</th>
     </tr></thead>
@@ -2307,7 +2313,8 @@ function renderMarcaPersonaTemas() {
       const d = DECS[t.decision||'pendiente'];
       return `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:10px;font-weight:600;">${t.tema}${t.notas?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${t.notas}</div>`:''}${(t.links&&t.links.length)?`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${t.links.map((l,i)=>`<a href="${l}" target="_blank" style="font-size:11px;color:#6c47ff;background:#f0ecff;border-radius:6px;padding:2px 8px;text-decoration:none;">🔗 Link ${i+1}</a>`).join('')}</div>`:''}</td>
-        <td style="padding:10px;font-weight:700;color:var(--accent);">${t.volumenTiktok||'—'}</td>
+        <td style="padding:10px;text-align:center;font-weight:700;color:#e11d48;">${t.megustas||'—'}</td>
+        <td style="padding:10px;text-align:center;font-weight:700;color:var(--accent);">${t.volumenTiktok||'—'}</td>
         <td style="padding:10px;text-align:center;"><span class="asist-badge ${d.cls}">${d.ico} ${d.lbl}</span></td>
         <td style="padding:10px;text-align:center;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" onclick="editarTema('${t.id}')">✏️</button>
