@@ -350,7 +350,6 @@ textarea { resize: vertical; }
         <select id="l-user">
           <option value="Winay">🏢 Winay (Agencia)</option>
           <option value="Enrique1">👑 Enrique1 (Administrador)</option>
-          <option value="Andrea1">👑 Andrea1 (Administradora)</option>
         </select>
       </div>
       <div class="fg"><label>Contraseña</label><input id="l-pass" type="password" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -360,6 +359,7 @@ textarea { resize: vertical; }
       <div class="fg"><label>Selecciona tu usuario</label>
         <select id="l-worker">
           <option value="Enrique1">👑 Enrique1</option>
+          <option value="Andrea1">👑 Andrea1</option>
           <option value="Diana1">👩 Diana1</option>
           <option value="Camila1">👩 Camila1</option>
           <option value="Franklin1">👨 Franklin1</option>
@@ -682,10 +682,10 @@ textarea { resize: vertical; }
 <div class="overlay" id="m-mxa-concepto">
   <div class="modal">
     <h2 id="m-mxa-concepto-title">🎯 Nuevo Concepto</h2>
-    <div style="display:flex;gap:10px;">
-      <div class="fg" style="flex:1;"><label>Deseo / Beneficio</label><input id="mxac-deseo" placeholder="Ej: Bajar de peso"></div>
-      <div class="fg" style="flex:1;"><label>Perfil de cliente</label><input id="mxac-perfil" placeholder="Ej: Mamás 30-45"></div>
-    </div>
+    <div class="fg"><label>👤 Perfil de cliente</label><input id="mxac-perfil" placeholder="Ej: Mamás 30-45" list="mxac-perfil-list"><datalist id="mxac-perfil-list"></datalist></div>
+    <div class="fg"><label>💡 Deseo 1 / Beneficio principal</label><input id="mxac-deseo" placeholder="Ej: Bajar de peso"></div>
+    <div class="fg"><label>💡 Deseo 2 (opcional)</label><input id="mxac-deseo2" placeholder="Ej: Tener más energía"></div>
+    <div class="fg"><label>💡 Deseo 3 (opcional)</label><input id="mxac-deseo3" placeholder="Ej: Verse bien en fotos"></div>
     <div class="fg"><label>Ángulo (cómo lo abordas)</label><input id="mxac-angulo" placeholder="Ej: Miedo a verse mal en verano"></div>
     <div class="fg"><label>Estado</label>
       <select id="mxac-estado">
@@ -727,12 +727,60 @@ textarea { resize: vertical; }
         <option value="fatigado">🟠 Fatigado</option>
       </select>
     </div>
+    <div class="fg"><label>👤 Asignado a (quién produce este hook)</label>
+      <select id="mxah-asignado">
+        <option value="">— Sin asignar —</option>
+      </select>
+    </div>
     <div class="fg"><label>Nomenclatura generada</label>
       <div id="mxah-nomen" style="font-family:monospace;font-size:12px;color:var(--accent);background:#ede9ff;padding:8px 12px;border-radius:8px;"></div>
     </div>
     <div class="fl">
       <button class="btn btn-ghost" onclick="cerrarModal('m-mxa-hook')">Cancelar</button>
       <button class="btn btn-primary" onclick="mxaGuardarHook()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: USAR MARCA PERSONA EN ADS -->
+<div class="overlay" id="m-mp-en-ads">
+  <div class="modal" style="width:480px;">
+    <h2>📢 Usar en Matriz Ads</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">El tema de Marca Persona se agregará como hook en la celda que elijas.</p>
+    <div style="background:#f0ecff;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px;">Tema seleccionado</div>
+      <div id="mpads-tema-txt" style="font-weight:600;font-size:14px;"></div>
+    </div>
+    <div class="fg"><label>Concepto (Perfil › Deseo)</label>
+      <select id="mpads-concepto">
+        <option value="">— Selecciona un concepto —</option>
+      </select>
+    </div>
+    <div class="fg"><label>Nivel de consciencia</label>
+      <select id="mpads-nivel">
+        <option value="N1">N1 — Inconsciente</option>
+        <option value="N2">N2 — Consciente del Problema</option>
+        <option value="N3">N3 — Consciente de la Solución</option>
+        <option value="N4">N4 — Consciente del Producto</option>
+        <option value="N5">N5 — Listo para Comprar</option>
+      </select>
+    </div>
+    <div class="fg"><label>Formato</label>
+      <select id="mpads-formato">
+        <option value="video">🎥 Video</option>
+        <option value="ugc">🤳 UGC</option>
+        <option value="imagen">🖼️ Imagen estática</option>
+        <option value="carrusel">📱 Carrusel</option>
+      </select>
+    </div>
+    <div class="fg"><label>👤 Asignado a</label>
+      <select id="mpads-asignado">
+        <option value="">— Sin asignar —</option>
+      </select>
+    </div>
+    <div class="fl">
+      <button class="btn btn-ghost" onclick="cerrarModal('m-mp-en-ads')">Cancelar</button>
+      <button class="btn btn-primary" onclick="mpGuardarEnAds()">📢 Agregar como Hook</button>
     </div>
   </div>
 </div>
@@ -2261,14 +2309,67 @@ function renderMarcaPersonaTemas() {
         <td style="padding:10px;font-weight:600;">${t.tema}${t.notas?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${t.notas}</div>`:''}${(t.links&&t.links.length)?`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${t.links.map((l,i)=>`<a href="${l}" target="_blank" style="font-size:11px;color:#6c47ff;background:#f0ecff;border-radius:6px;padding:2px 8px;text-decoration:none;">🔗 Link ${i+1}</a>`).join('')}</div>`:''}</td>
         <td style="padding:10px;font-weight:700;color:var(--accent);">${t.volumenTiktok||'—'}</td>
         <td style="padding:10px;text-align:center;"><span class="asist-badge ${d.cls}">${d.ico} ${d.lbl}</span></td>
-        <td style="padding:10px;text-align:center;display:flex;gap:6px;justify-content:center;">
+        <td style="padding:10px;text-align:center;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" onclick="editarTema('${t.id}')">✏️</button>
           ${t.decision==='grabar'?`<button class="btn btn-primary btn-sm" onclick="pasarAProduccionMP('${t.id}')">▶ Producir</button>`:''}
+          <button class="btn btn-sm" style="background:#ede9ff;color:#6c47ff;border:none;cursor:pointer;border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;" onclick="abrirMpEnAds('${t.id}')">📢 Ads</button>
           <button class="btn btn-danger btn-sm" onclick="eliminarTema('${t.id}')">✕</button>
         </td>
       </tr>`;
     }).join('')}</tbody>
   </table>`;
+}
+
+// ===== MARCA PERSONA → ADS =====
+let _mpAdsId = null;
+function abrirMpEnAds(temaId) {
+  _mpAdsId = temaId;
+  const t = (cl.marcaPersona?.temas||[]).find(t=>t.id===temaId);
+  if(!t) return;
+  document.getElementById('mpads-tema-txt').textContent = t.tema;
+  // Poblar conceptos
+  const conceptos = cl.mxConceptos || [];
+  const sel = document.getElementById('mpads-concepto');
+  if(!conceptos.length) {
+    sel.innerHTML = '<option value="">— No hay conceptos en Matriz Ads —</option>';
+  } else {
+    sel.innerHTML = '<option value="">— Selecciona un concepto —</option>' +
+      conceptos.map(c=>`<option value="${c.id}">${c.perfil} › ${c.deseo}</option>`).join('');
+  }
+  // Poblar asignados
+  document.getElementById('mpads-asignado').innerHTML = '<option value="">— Sin asignar —</option>' +
+    USUARIOS.filter(u=>u.user!=='Winay').map(u=>`<option value="${u.user}">${u.nombre}</option>`).join('');
+  abrirModal('m-mp-en-ads');
+}
+function mpGuardarEnAds() {
+  const temaId = _mpAdsId;
+  const conceptoId = document.getElementById('mpads-concepto').value;
+  const nivel = document.getElementById('mpads-nivel').value;
+  const fmt = document.getElementById('mpads-formato').value;
+  const asignado = document.getElementById('mpads-asignado').value;
+  if(!conceptoId) { alert('Selecciona un concepto de Matriz Ads'); return; }
+  const t = (cl.marcaPersona?.temas||[]).find(t=>t.id===temaId);
+  const c = (cl.mxConceptos||[]).find(c=>c.id===conceptoId);
+  if(!t||!c) return;
+  if(!cl.mxHooks) cl.mxHooks = {};
+  const existing = (cl.mxHooks[conceptoId+'_'+nivel])||[];
+  const nomen = mxaBuildNomen(c, nivel, fmt, existing.length+1);
+  const nuevoHook = { id:uid(), formato:fmt, hook:t.tema, estado:'pendiente', asignado,
+    nomen, version:existing.length+1, listo:false, desdeMarcaPersona:true };
+  cl.mxHooks[conceptoId+'_'+nivel] = [...existing, nuevoHook];
+  // Auto-tarea si asignado
+  if(asignado) {
+    if(!cl.tareas) cl.tareas = [];
+    const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
+    cl.tareas.push({ id:uid(), titulo:`🪝 Hook de Marca Persona: "${t.tema.substring(0,50)}"`,
+      desc:`Formato: ${fmt} · Nivel: ${nivel} · Perfil: ${c.perfil} · Deseo: ${c.deseo}\nNomenclatura: ${nomen}`,
+      asignado, fechaInicio:new Date().toISOString().slice(0,10), fecha:'',
+      prioridad:'media', estado:'pendiente', creadoPor:currentUser?.nombre||'Admin',
+      creada:new Date().toISOString(), tipo:'hook', hookId:nuevoHook.id });
+    addNotif(`📢 Hook de Marca Persona asignado a ${nomAsig} · "${t.tema.substring(0,40)}"`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
+  }
+  save(); cerrarModal('m-mp-en-ads');
+  mostrarEstado('✅ Tema agregado como hook en Matriz Ads');
 }
 
 // ===== SUB-TABS NOTAS/TAREAS =====
@@ -3106,7 +3207,7 @@ function eliminarEvento(id) {
 const USUARIOS = [
   { user:'Winay',    pass:'Winay2024',        rol:'empresa',     nombre:'Agencia Winay' },
   { user:'Enrique1', pass:'yopuedosergrande', rol:'empresa',     nombre:'Enrique' },
-  { user:'Andrea1',  pass:'Teamoenrique',    rol:'empresa',     nombre:'Andrea Ponce' },
+  { user:'Andrea1',  pass:'Teamoenrique',    rol:'trabajador',  nombre:'Andrea Ponce' },
   { user:'Diana1',   pass:'Diana1',           rol:'trabajador',  nombre:'Diana' },
   { user:'Camila1',  pass:'Camila1',          rol:'supervisor',  nombre:'Camila' },
   { user:'Franklin1',pass:'Franklin1',        rol:'trabajador',  nombre:'Franklin' },
@@ -4292,46 +4393,63 @@ function mxaRenderTable() {
   if(!conceptos.length) {
     html += `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--muted);">Agrega tu primer concepto con el botón de arriba</td></tr>`;
   } else {
+    // Agrupar por perfil manteniendo orden de inserción
+    const perfilOrder = [];
+    const perfilMap = {};
     conceptos.forEach(c=>{
-      const estadoColors = {ganador:'#16a34a',testeo:'#d97706',pausado:'#ea580c',agotado:'#dc2626',fatigado:'#f87171',pendiente:'#9ca3af'};
-      const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${estadoColors[c.estado]||'#9ca3af'};margin-right:6px;flex-shrink:0;"></span>`;
-      const prog = mxaConceptoProgress(c.id);
+      if(!perfilMap[c.perfil]){ perfilMap[c.perfil]=[]; perfilOrder.push(c.perfil); }
+      perfilMap[c.perfil].push(c);
+    });
+    const estadoColors = {ganador:'#16a34a',testeo:'#d97706',pausado:'#ea580c',agotado:'#dc2626',fatigado:'#f87171',pendiente:'#9ca3af'};
+    perfilOrder.forEach(perfil=>{
+      const grupo = perfilMap[perfil];
+      // Fila cabecera de perfil
       html += `<tr>
-        <td style="padding:12px 14px;border:1px solid var(--border);background:#fff;min-width:200px;vertical-align:top;">
-          <div style="display:flex;align-items:flex-start;gap:6px;">
-            ${dot}
-            <div style="flex:1;">
-              <div style="font-weight:700;font-size:13px;">${esc(c.deseo)} × ${esc(c.perfil)}</div>
-              ${c.angulo?`<div style="font-size:11px;color:var(--accent);margin-top:2px;">${esc(c.angulo)}</div>`:''}
-              <div style="height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;">
-                <div style="height:100%;width:${prog}%;background:#16a34a;border-radius:2px;"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;margin-top:3px;">
-                <span style="font-size:9px;color:var(--muted);">${prog}%</span>
-                <span>
-                  <button onclick="mxaEditarConcepto('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px;">✏️</button>
-                  <button onclick="mxaEliminarConcepto('${c.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:11px;padding:0 2px;">🗑</button>
-                </span>
+        <td colspan="6" style="padding:8px 14px;background:linear-gradient(90deg,#ede9ff,#f5f3ff);border:1px solid #c4b5fd;font-weight:800;font-size:12px;letter-spacing:.5px;color:#5b21b6;">
+          👤 PERFIL: ${esc(perfil)}
+          <span style="font-size:10px;font-weight:400;color:#7c3aed;margin-left:8px;">${grupo.length} deseo${grupo.length>1?'s':''}</span>
+        </td>
+      </tr>`;
+      grupo.forEach(c=>{
+        const dot = `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${estadoColors[c.estado]||'#9ca3af'};margin-right:6px;flex-shrink:0;"></span>`;
+        const prog = mxaConceptoProgress(c.id);
+        html += `<tr>
+          <td style="padding:10px 14px 10px 24px;border:1px solid var(--border);background:#fff;min-width:200px;vertical-align:top;">
+            <div style="display:flex;align-items:flex-start;gap:6px;">
+              ${dot}
+              <div style="flex:1;">
+                <div style="font-weight:700;font-size:13px;">💡 ${esc(c.deseo)}</div>
+                ${c.angulo?`<div style="font-size:11px;color:var(--accent);margin-top:2px;">↳ ${esc(c.angulo)}</div>`:''}
+                <div style="height:3px;background:var(--border);border-radius:2px;margin-top:6px;overflow:hidden;">
+                  <div style="height:100%;width:${prog}%;background:#16a34a;border-radius:2px;"></div>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:3px;">
+                  <span style="font-size:9px;color:var(--muted);">${prog}%</span>
+                  <span>
+                    <button onclick="mxaEditarConcepto('${c.id}')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:11px;padding:0 2px;">✏️</button>
+                    <button onclick="mxaEliminarConcepto('${c.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:11px;padding:0 2px;">🗑</button>
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        </td>
-        ${MXA_NIVELES.map(n=>{
-          const hooks = mxaHooks(c.id,n);
-          const isActive = mxaDetConceptoId===c.id && mxaDetNivel===n;
-          const bgProp = MXA_TIPO[n]==='prosp' ? '#fff8ed' : '#f0fdf4';
-          const bgActive = MXA_TIPO[n]==='prosp' ? '#fde68a' : '#bbf7d0';
-          const gan = hooks.filter(h=>h.estado==='ganador').length;
-          return `<td style="padding:12px 8px;border:1px solid var(--border);text-align:center;cursor:pointer;background:${isActive?bgActive:bgProp};transition:background .15s;vertical-align:middle;"
-                      onclick="mxaAbrirCelda('${c.id}','${n}')">
-            ${hooks.length>0 ? `
-              <div style="font-size:22px;font-weight:800;color:#1a1a2e;">${hooks.length}</div>
-              <div style="font-size:10px;color:var(--muted);">hook${hooks.length>1?'s':''}</div>
-              ${gan>0?`<div style="font-size:10px;color:#16a34a;">★ ${gan}</div>`:''}
-            ` : `<div style="font-size:18px;color:#d1d5db;">+</div>`}
-          </td>`;
-        }).join('')}
-      </tr>`;
+          </td>
+          ${MXA_NIVELES.map(n=>{
+            const hooks = mxaHooks(c.id,n);
+            const isActive = mxaDetConceptoId===c.id && mxaDetNivel===n;
+            const bgProp = MXA_TIPO[n]==='prosp' ? '#fff8ed' : '#f0fdf4';
+            const bgActive = MXA_TIPO[n]==='prosp' ? '#fde68a' : '#bbf7d0';
+            const gan = hooks.filter(h=>h.estado==='ganador').length;
+            return `<td style="padding:12px 8px;border:1px solid var(--border);text-align:center;cursor:pointer;background:${isActive?bgActive:bgProp};transition:background .15s;vertical-align:middle;"
+                        onclick="mxaAbrirCelda('${c.id}','${n}')">
+              ${hooks.length>0 ? `
+                <div style="font-size:22px;font-weight:800;color:#1a1a2e;">${hooks.length}</div>
+                <div style="font-size:10px;color:var(--muted);">hook${hooks.length>1?'s':''}</div>
+                ${gan>0?`<div style="font-size:10px;color:#16a34a;">★ ${gan}</div>`:''}
+              ` : `<div style="font-size:18px;color:#d1d5db;">+</div>`}
+            </td>`;
+          }).join('')}
+        </tr>`;
+      });
     });
   }
   html += `</tbody>`;
@@ -4397,6 +4515,7 @@ function mxaRenderPanel() {
           <button onclick="event.stopPropagation();mxaEliminarHook('${h.id}')" style="background:none;border:none;cursor:pointer;color:#dc2626;font-size:12px;padding:0;">🗑</button>
         </div>
         <div style="font-size:12px;color:var(--muted);line-height:1.5;">${esc((h.hook||'').slice(0,80))}${(h.hook||'').length>80?'…':''}</div>
+        ${h.asignado?`<div style="font-size:10px;color:#6c47ff;margin-top:3px;">👤 ${USUARIOS.find(u=>u.user===h.asignado)?.nombre||h.asignado}</div>`:''}
         <div style="font-family:monospace;font-size:10px;color:var(--accent);margin-top:4px;opacity:.7;">${esc(h.nomen||'')}</div>
       </div>`;
     });
@@ -4409,34 +4528,47 @@ function mxaRenderPanel() {
 function mxaAbrirConcepto() {
   mxaEditConceptoId = null;
   document.getElementById('m-mxa-concepto-title').textContent = '🎯 Nuevo Concepto';
-  ['mxac-deseo','mxac-perfil','mxac-angulo'].forEach(id=>document.getElementById(id).value='');
+  ['mxac-deseo','mxac-deseo2','mxac-deseo3','mxac-perfil','mxac-angulo'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('mxac-estado').value='pendiente';
+  // Autocompletar perfiles existentes
+  const perfiles = [...new Set(mxaConceptos().map(c=>c.perfil))];
+  document.getElementById('mxac-perfil-list').innerHTML = perfiles.map(p=>`<option value="${p}">`).join('');
   abrirModal('m-mxa-concepto');
 }
 function mxaEditarConcepto(cId) {
   mxaEditConceptoId = cId;
   const c = mxaConceptos().find(x=>x.id===cId);
   document.getElementById('m-mxa-concepto-title').textContent = '✏️ Editar Concepto';
-  document.getElementById('mxac-deseo').value = c.deseo;
   document.getElementById('mxac-perfil').value = c.perfil;
+  document.getElementById('mxac-deseo').value = c.deseo;
+  document.getElementById('mxac-deseo2').value = c.deseo2||'';
+  document.getElementById('mxac-deseo3').value = c.deseo3||'';
   document.getElementById('mxac-angulo').value = c.angulo||'';
   document.getElementById('mxac-estado').value = c.estado||'pendiente';
+  const perfiles = [...new Set(mxaConceptos().map(x=>x.perfil))];
+  document.getElementById('mxac-perfil-list').innerHTML = perfiles.map(p=>`<option value="${p}">`).join('');
   abrirModal('m-mxa-concepto');
 }
 function mxaGuardarConcepto() {
-  const deseo = document.getElementById('mxac-deseo').value.trim();
   const perfil = document.getElementById('mxac-perfil').value.trim();
-  if(!deseo||!perfil){ alert('Completa deseo y perfil'); return; }
+  const deseo  = document.getElementById('mxac-deseo').value.trim();
+  if(!deseo||!perfil){ alert('Completa el perfil y al menos el Deseo 1'); return; }
   if(!cl.mxConceptos) cl.mxConceptos = [];
+  const angulo = document.getElementById('mxac-angulo').value.trim();
+  const estado = document.getElementById('mxac-estado').value;
+  const deseo2 = document.getElementById('mxac-deseo2').value.trim();
+  const deseo3 = document.getElementById('mxac-deseo3').value.trim();
   if(mxaEditConceptoId) {
     const c = cl.mxConceptos.find(x=>x.id===mxaEditConceptoId);
-    c.deseo = deseo; c.perfil = perfil;
-    c.angulo = document.getElementById('mxac-angulo').value.trim();
-    c.estado = document.getElementById('mxac-estado').value;
+    c.deseo = deseo; c.deseo2 = deseo2; c.deseo3 = deseo3;
+    c.perfil = perfil; c.angulo = angulo; c.estado = estado;
   } else {
-    cl.mxConceptos.push({ id:uid(), deseo, perfil,
-      angulo: document.getElementById('mxac-angulo').value.trim(),
-      estado: document.getElementById('mxac-estado').value });
+    // Create up to 3 concepts (one per deseo), all with same perfil
+    const deseos = [deseo, deseo2, deseo3].filter(Boolean);
+    deseos.forEach((d, i) => {
+      cl.mxConceptos.push({ id:uid(), deseo:d, deseo2: i===0?deseo2:'', deseo3: i===0?deseo3:'',
+        perfil, angulo, estado, _perfilGroup: perfil });
+    });
   }
   save(); cerrarModal('m-mxa-concepto'); renderMatrizAds();
 }
@@ -4449,12 +4581,18 @@ function mxaEliminarConcepto(cId) {
 }
 
 // ---- HOOK CRUD ----
+function mxaPopularAsignadoSelect(valorSelec) {
+  const sel = document.getElementById('mxah-asignado');
+  sel.innerHTML = '<option value="">— Sin asignar —</option>' +
+    USUARIOS.filter(u=>u.user!=='Winay').map(u=>`<option value="${u.user}"${u.user===valorSelec?' selected':''}>${u.nombre}</option>`).join('');
+}
 function mxaAbrirNuevoHook() {
   mxaEditHookId = null;
   document.getElementById('m-mxa-hook-title').textContent = '🪝 Nuevo Hook';
   document.getElementById('mxah-hook').value = '';
   document.getElementById('mxah-formato').value = 'imagen';
   document.getElementById('mxah-estado').value = 'pendiente';
+  mxaPopularAsignadoSelect('');
   mxaActualizarNomen();
   abrirModal('m-mxa-hook');
 }
@@ -4466,6 +4604,7 @@ function mxaAbrirEditHook(hId) {
   document.getElementById('mxah-hook').value = h.hook||'';
   document.getElementById('mxah-formato').value = h.formato||'imagen';
   document.getElementById('mxah-estado').value = h.estado||'pendiente';
+  mxaPopularAsignadoSelect(h.asignado||'');
   mxaActualizarNomen();
   abrirModal('m-mxa-hook');
 }
@@ -4501,19 +4640,34 @@ function mxaGuardarHook() {
   if(!hook){ alert('Escribe el hook de apertura'); return; }
   const fmt = document.getElementById('mxah-formato').value;
   const estado = document.getElementById('mxah-estado').value;
+  const asignado = document.getElementById('mxah-asignado').value;
   const c = mxaConceptos().find(x=>x.id===mxaDetConceptoId);
   if(!c) return;
 
   if(mxaEditHookId) {
     const r = mxaFindHook(mxaEditHookId);
-    if(r){ r.hook.formato=fmt; r.hook.hook=hook; r.hook.estado=estado; }
+    if(r){ r.hook.formato=fmt; r.hook.hook=hook; r.hook.estado=estado; r.hook.asignado=asignado; }
   } else {
     const existing = mxaHooks(mxaDetConceptoId, mxaDetNivel);
     const nomen = mxaBuildNomen(c, mxaDetNivel, fmt, existing.length+1);
-    mxaSetHooks(mxaDetConceptoId, mxaDetNivel, [...existing, {
-      id:uid(), formato:fmt, hook, estado,
-      nomen, version: existing.length+1, listo:false
-    }]);
+    const nuevoHook = { id:uid(), formato:fmt, hook, estado, asignado,
+      nomen, version: existing.length+1, listo:false };
+    mxaSetHooks(mxaDetConceptoId, mxaDetNivel, [...existing, nuevoHook]);
+    // Auto-crear tarea pendiente si hay alguien asignado
+    if(asignado) {
+      if(!cl.tareas) cl.tareas = [];
+      const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
+      cl.tareas.push({
+        id: uid(),
+        titulo: `🪝 Producir hook "${hook.substring(0,50)}${hook.length>50?'…':''}"`,
+        desc: `Formato: ${fmt} · Nivel: ${mxaDetNivel} · Perfil: ${c.perfil} · Deseo: ${c.deseo}\nNomenclatura: ${nomen}`,
+        asignado, fechaInicio: new Date().toISOString().slice(0,10), fecha: '',
+        prioridad: 'media', estado: 'pendiente',
+        creadoPor: currentUser?.nombre||'Admin', creada: new Date().toISOString(),
+        tipo: 'hook', hookId: nuevoHook.id
+      });
+      addNotif(`🪝 Hook asignado a ${nomAsig} · "${hook.substring(0,40)}"`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
+    }
   }
   save(); cerrarModal('m-mxa-hook'); renderMatrizAds();
 }
