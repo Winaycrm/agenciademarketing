@@ -590,7 +590,10 @@ textarea { resize: vertical; }
       <div class="card" style="margin-bottom:20px;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <h2>🔍 Investigación de Temas</h2>
-          <button class="btn btn-primary btn-sm" onclick="abrirNuevoTema()">+ Nuevo Tema</button>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost btn-sm" onclick="descargarMarcaPersonaCSV()">📥 Descargar Excel</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirNuevoTema()">+ Nuevo Tema</button>
+          </div>
         </div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Registra el tema, revisa la cantidad de me gustas y el volumen de búsquedas, y decide si lo grabas o no.</div>
         <div id="mp-temas-list"></div>
@@ -2325,6 +2328,34 @@ function renderMarcaPersonaTemas() {
       </tr>`;
     }).join('')}</tbody>
   </table>`;
+}
+
+// ===== MARCA PERSONA CSV DOWNLOAD =====
+function descargarMarcaPersonaCSV() {
+  const temas = (cl.marcaPersona && cl.marcaPersona.temas) || [];
+  if(!temas.length) { alert('No hay temas para descargar'); return; }
+  const DECS = { grabar:'Grabar', no_grabar:'Grabado', pendiente:'Pendiente' };
+  const filas = [
+    ['Tema', 'Notas', 'Me Gustas', 'Vol. Búsquedas', 'Decisión', 'Links']
+  ];
+  temas.forEach(t => {
+    filas.push([
+      t.tema || '',
+      t.notas || '',
+      t.volumenTiktok || '',
+      t.volumenBusquedas || '',
+      DECS[t.decision || 'pendiente'] || '',
+      (t.links || []).join(' | ')
+    ]);
+  });
+  const csv = filas.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${cl.nombre || 'cliente'}_MarcaPersona_Temas.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ===== MARCA PERSONA → ADS =====
