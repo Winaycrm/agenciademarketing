@@ -1210,7 +1210,7 @@ textarea { resize: vertical; }
     <div class="fg"><label>Notas / Detalles</label><textarea id="ev-notas" style="min-height:70px;" placeholder="¿Qué se va a hacer? ¿Lugar?"></textarea></div>
     <div class="fl">
       <button class="btn btn-ghost" onclick="cerrarModal('m-evento-cl')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarEvento()">Guardar</button>
+      <button class="btn btn-primary" onclick="guardarEventoCl()">Guardar</button>
     </div>
   </div>
 </div>
@@ -3345,7 +3345,7 @@ function abrirNuevoEvento() {
   abrirModal('m-evento-cl');
 }
 
-function guardarEvento() {
+function guardarEventoCl() {
   const nombre = v('ev-nombre'); if(!nombre) return alert('Escribe el nombre del evento');
   const fecha = document.getElementById('ev-fecha').value; if(!fecha) return alert('Elige una fecha');
   const hora = document.getElementById('ev-hora').value || '';
