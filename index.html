@@ -1112,8 +1112,8 @@ textarea { resize: vertical; }
   </div>
 </div>
 
-<!-- MODAL: NUEVO EVENTO CALENDARIO -->
-<div class="overlay" id="m-evento">
+<!-- MODAL: NUEVO EVENTO CALENDARIO CLIENTE -->
+<div class="overlay" id="m-evento-cl">
   <div class="modal">
     <h2>📅 Nuevo Evento</h2>
     <div class="fg"><label>Nombre del evento</label><input id="ev-nombre" placeholder="Ej: Grabación con Salvador, Reunión equipo..."></div>
@@ -1135,9 +1135,19 @@ textarea { resize: vertical; }
         <option value="otro">📌 Otro</option>
       </select>
     </div>
-    <div class="fg"><label>Notas / Detalles</label><textarea id="ev-notas" style="min-height:70px;" placeholder="¿Qué se va a hacer? ¿Quiénes participan? ¿Lugar?"></textarea></div>
+    <div class="fg">
+      <label>👥 Personas asignadas (selecciona una o más)</label>
+      <div id="ev-personas-wrap" style="display:flex;flex-wrap:wrap;gap:8px;padding:8px;background:var(--bg2);border-radius:8px;border:1.5px solid var(--border);">
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" value="Enrique" class="ev-persona-cb"> Enrique</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" value="Andrea Ponce" class="ev-persona-cb"> Andrea</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" value="Camila" class="ev-persona-cb"> Camila</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" value="Diana" class="ev-persona-cb"> Diana</label>
+        <label style="display:flex;align-items:center;gap:5px;font-size:13px;cursor:pointer;"><input type="checkbox" value="Franklin" class="ev-persona-cb"> Franklin</label>
+      </div>
+    </div>
+    <div class="fg"><label>Notas / Detalles</label><textarea id="ev-notas" style="min-height:70px;" placeholder="¿Qué se va a hacer? ¿Lugar?"></textarea></div>
     <div class="fl">
-      <button class="btn btn-ghost" onclick="cerrarModal('m-evento')">Cancelar</button>
+      <button class="btn btn-ghost" onclick="cerrarModal('m-evento-cl')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarEvento()">Guardar</button>
     </div>
   </div>
@@ -3063,7 +3073,32 @@ function calNavMes(dir) {
 }
 
 function renderCalendarioCliente() {
-  const eventos = cl.eventos || [];
+  // Eventos manuales
+  const eventosBase = cl.eventos || [];
+
+  // Synthetic events from production kanban cards with fechaLimite
+  const eventosSinteticos = [];
+  const prod = cl.produccion || {};
+  ['marcaPersona','flyer','video','impresion'].forEach(tipo => {
+    (prod[tipo] || []).forEach(p => {
+      const fecha = p.fechaLimite || null;
+      if(!fecha) return;
+      const tipoEv = tipo === 'video' ? 'grabacion' : tipo === 'marcaPersona' ? 'grabacion' : 'entrega';
+      const icon = tipo === 'marcaPersona' ? '🎬' : tipo === 'video' ? '🎥' : tipo === 'flyer' ? '🖼️' : '🖨️';
+      eventosSinteticos.push({
+        id: 'prod_' + p.id,
+        nombre: `${icon} ${p.titulo}`,
+        fecha,
+        hora: '',
+        tipo: tipoEv,
+        notas: p.notas || '',
+        personas: p.asignados || [],
+        _produccion: true
+      });
+    });
+  });
+
+  const eventos = [...eventosBase, ...eventosSinteticos];
   const hoy = new Date();
   const hoyStr = hoy.toISOString().slice(0,10);
   const mes = calMesActual;
@@ -3152,9 +3187,11 @@ function renderCalendarioCliente() {
         <div style="font-size:20px;">${EV_ICONOS[e.tipo]||'📌'}</div>
         <div style="flex:1;">
           <div style="font-weight:700;font-size:14px;">${e.nombre}${e.hora?` <span style="font-size:12px;color:var(--accent);font-weight:800;">🕐 ${e.hora}</span>`:''}</div>
+          ${(e.personas && e.personas.length) ? `<div style="font-size:11px;color:#7c3aed;margin-top:3px;">👥 ${e.personas.join(', ')}</div>` : ''}
           ${e.notas ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">${e.notas}</div>` : ''}
+          ${e._produccion ? `<div style="font-size:10px;color:#9ca3af;margin-top:2px;">📋 Producción</div>` : ''}
         </div>
-        <button class="btn btn-danger btn-sm" onclick="eliminarEvento('${e.id}')">✕</button>
+        ${e._produccion ? '' : `<button class="btn btn-danger btn-sm" onclick="eliminarEvento('${e.id}')">✕</button>`}
       </div>`).join('')}
     </div>`;
   } else if(calDiaSeleccionado) {
@@ -3196,9 +3233,11 @@ function renderCalendarioCliente() {
         <div style="flex:1;">
           <div style="font-weight:700;font-size:14px;">${e.nombre}${e.hora?` <span style="font-size:11px;color:var(--accent);font-weight:800;">🕐 ${e.hora}</span>`:''}</div>
           <div style="font-size:12px;color:var(--muted);">${faltan}</div>
+          ${(e.personas && e.personas.length) ? `<div style="font-size:11px;color:#7c3aed;margin-top:2px;">👥 ${e.personas.join(', ')}</div>` : ''}
           ${e.notas ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">${e.notas}</div>` : ''}
+          ${e._produccion ? `<div style="font-size:10px;color:#9ca3af;">📋 Producción</div>` : ''}
         </div>
-        <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarEvento('${e.id}')">✕</button>
+        ${e._produccion ? '' : `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarEvento('${e.id}')">✕</button>`}
       </div>`;
     }).join('');
 }
@@ -3216,12 +3255,20 @@ function seleccionarDiaCal(fechaStr) {
   }, 50);
 }
 
+function evLimpiarPersonas() {
+  document.querySelectorAll('.ev-persona-cb').forEach(cb => cb.checked = false);
+}
+function evGetPersonas() {
+  return [...document.querySelectorAll('.ev-persona-cb:checked')].map(cb => cb.value);
+}
+
 function abrirNuevoEventoFecha(fecha) {
   document.getElementById('ev-nombre').value = '';
   document.getElementById('ev-fecha').value = fecha;
   document.getElementById('ev-hora').value = '';
   document.getElementById('ev-notas').value = '';
-  abrirModal('m-evento');
+  evLimpiarPersonas();
+  abrirModal('m-evento-cl');
 }
 
 function abrirNuevoEvento() {
@@ -3229,16 +3276,18 @@ function abrirNuevoEvento() {
   document.getElementById('ev-fecha').value = calDiaSeleccionado || new Date().toISOString().slice(0,10);
   document.getElementById('ev-hora').value = '';
   document.getElementById('ev-notas').value = '';
-  abrirModal('m-evento');
+  evLimpiarPersonas();
+  abrirModal('m-evento-cl');
 }
 
 function guardarEvento() {
   const nombre = v('ev-nombre'); if(!nombre) return alert('Escribe el nombre del evento');
   const fecha = document.getElementById('ev-fecha').value; if(!fecha) return alert('Elige una fecha');
   const hora = document.getElementById('ev-hora').value || '';
+  const personas = evGetPersonas();
   if(!cl.eventos) cl.eventos = [];
-  cl.eventos.push({ id: uid(), nombre, fecha, hora, tipo: document.getElementById('ev-tipo').value, notas: v('ev-notas') });
-  save(); cerrarModal('m-evento'); renderCalendarioCliente();
+  cl.eventos.push({ id: uid(), nombre, fecha, hora, tipo: document.getElementById('ev-tipo').value, notas: v('ev-notas'), personas });
+  save(); cerrarModal('m-evento-cl'); renderCalendarioCliente();
 }
 
 function abrirNuevoEventoFechaHora(fecha, hora) {
@@ -3246,7 +3295,8 @@ function abrirNuevoEventoFechaHora(fecha, hora) {
   document.getElementById('ev-fecha').value = fecha;
   document.getElementById('ev-hora').value = hora || '';
   document.getElementById('ev-notas').value = '';
-  abrirModal('m-evento');
+  evLimpiarPersonas();
+  abrirModal('m-evento-cl');
 }
 
 function eliminarEvento(id) {
