@@ -615,18 +615,39 @@ textarea { resize: vertical; }
 
   <!-- MATRIZ ADS -->
   <div id="t-matrizads">
-    <div id="mxa-wrap" style="display:flex;gap:0;">
-      <div id="mxa-left" style="flex:1;min-width:0;overflow-x:auto;">
-        <div id="mxa-stats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;"></div>
-        <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="mxaAbrirConcepto()">+ Concepto</button>
-          <button class="btn btn-ghost btn-sm" onclick="mxaExportCSV()">📤 Exportar CSV</button>
+    <!-- Sub-tabs Matriz Ads -->
+    <div class="tabs" style="margin-bottom:16px;">
+      <div class="tab active" id="mxa-subtab-tabla" onclick="mxaSubTab('tabla',this)">📊 Tabla</div>
+      <div class="tab" id="mxa-subtab-guia" onclick="mxaSubTab('guia',this)">📚 Guía de Deseos</div>
+    </div>
+
+    <!-- Sub-tab: Tabla -->
+    <div id="mxa-st-tabla">
+      <div id="mxa-wrap" style="display:flex;gap:0;">
+        <div id="mxa-left" style="flex:1;min-width:0;overflow-x:auto;">
+          <div id="mxa-stats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;"></div>
+          <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="mxaAbrirConcepto()">+ Concepto</button>
+            <button class="btn btn-ghost btn-sm" onclick="mxaExportCSV()">📤 Exportar CSV</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table id="mxa-table" style="border-collapse:collapse;width:100%;min-width:720px;"></table>
+          </div>
         </div>
-        <div style="overflow-x:auto;">
-          <table id="mxa-table" style="border-collapse:collapse;width:100%;min-width:720px;"></table>
-        </div>
+        <div id="mxa-panel" style="display:none;width:360px;min-width:360px;border-left:1px solid var(--border);margin-left:20px;padding-left:20px;"></div>
       </div>
-      <div id="mxa-panel" style="display:none;width:360px;min-width:360px;border-left:1px solid var(--border);margin-left:20px;padding-left:20px;"></div>
+    </div>
+
+    <!-- Sub-tab: Guía de Deseos -->
+    <div id="mxa-st-guia" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
+        <div>
+          <div style="font-size:15px;font-weight:800;">📚 Guía de Deseos & Perfiles</div>
+          <div style="font-size:12px;color:var(--muted);">Define qué significa cada deseo y perfil para este cliente. Escribe textos tan largos como necesites.</div>
+        </div>
+        <button class="btn btn-primary" onclick="mxaGuiaAbrirNuevo()">+ Nueva Definición</button>
+      </div>
+      <div id="mxa-guia-list"></div>
     </div>
   </div>
 
@@ -802,6 +823,36 @@ textarea { resize: vertical; }
     <div class="fl">
       <button class="btn btn-ghost" onclick="cerrarModal('m-mxa-hook')">Cancelar</button>
       <button class="btn btn-primary" onclick="mxaGuardarHook()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GUÍA DE DESEOS — NUEVA DEFINICIÓN -->
+<div class="overlay" id="m-guia-def">
+  <div class="modal" style="max-width:640px;">
+    <h2 id="m-guia-def-titulo">📚 Nueva Definición</h2>
+    <div class="fg">
+      <label>Título (ej: ACEPTACIÓN — Quiero sentirme aceptado)</label>
+      <input id="gd-titulo" placeholder="Escribe el nombre del deseo o perfil...">
+    </div>
+    <div class="fg">
+      <label>Color de etiqueta</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="gd-colores">
+        <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;"><input type="radio" name="gd-color" value="#7c3aed" checked> <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#7c3aed;"></span> Morado</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;"><input type="radio" name="gd-color" value="#2563eb"> <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#2563eb;"></span> Azul</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;"><input type="radio" name="gd-color" value="#16a34a"> <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#16a34a;"></span> Verde</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;"><input type="radio" name="gd-color" value="#dc2626"> <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#dc2626;"></span> Rojo</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;"><input type="radio" name="gd-color" value="#d97706"> <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#d97706;"></span> Naranja</label>
+        <label style="cursor:pointer;display:flex;align-items:center;gap:4px;font-size:12px;"><input type="radio" name="gd-color" value="#0891b2"> <span style="display:inline-block;width:14px;height:14px;border-radius:50%;background:#0891b2;"></span> Cyan</label>
+      </div>
+    </div>
+    <div class="fg">
+      <label>Contenido (tan largo como necesites — usa saltos de línea libremente)</label>
+      <textarea id="gd-contenido" style="min-height:300px;font-size:13px;line-height:1.6;" placeholder="Escribe la definición completa aquí...&#10;&#10;Puedes usar saltos de línea para organizar el texto.&#10;Ejemplo:&#10;&#10;Definición&#10;Es la necesidad de...&#10;&#10;¿Cómo se manifiesta?&#10;..."></textarea>
+    </div>
+    <div class="fl">
+      <button class="btn btn-ghost" onclick="cerrarModal('m-guia-def')">Cancelar</button>
+      <button class="btn btn-primary" onclick="mxaGuiaGuardar()">Guardar</button>
     </div>
   </div>
 </div>
@@ -3373,6 +3424,110 @@ function eliminarEvento(id) {
   if(!confirm('¿Eliminar evento?')) return;
   cl.eventos = (cl.eventos||[]).filter(e => e.id !== id);
   save(); renderCalendarioCliente();
+}
+
+// ===== GUÍA DE DESEOS (Matriz Ads) =====
+let gdEditId = null;
+
+function mxaSubTab(tipo, el) {
+  document.querySelectorAll('#t-matrizads .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('mxa-st-tabla').style.display = tipo==='tabla' ? '' : 'none';
+  document.getElementById('mxa-st-guia').style.display = tipo==='guia' ? '' : 'none';
+  if(tipo==='guia') renderMxaGuia();
+}
+
+function mxaGuiaAbrirNuevo() {
+  gdEditId = null;
+  document.getElementById('m-guia-def-titulo').textContent = '📚 Nueva Definición';
+  document.getElementById('gd-titulo').value = '';
+  document.getElementById('gd-contenido').value = '';
+  document.querySelector('input[name="gd-color"][value="#7c3aed"]').checked = true;
+  abrirModal('m-guia-def');
+}
+
+function mxaGuiaEditar(id) {
+  if(!cl.mxGuia) return;
+  const d = cl.mxGuia.find(x => x.id===id);
+  if(!d) return;
+  gdEditId = id;
+  document.getElementById('m-guia-def-titulo').textContent = '✏️ Editar Definición';
+  document.getElementById('gd-titulo').value = d.titulo;
+  document.getElementById('gd-contenido').value = d.contenido;
+  const radio = document.querySelector(`input[name="gd-color"][value="${d.color||'#7c3aed'}"]`);
+  if(radio) radio.checked = true;
+  abrirModal('m-guia-def');
+}
+
+function mxaGuiaGuardar() {
+  const titulo = document.getElementById('gd-titulo').value.trim();
+  if(!titulo) return alert('Escribe el título');
+  const contenido = document.getElementById('gd-contenido').value.trim();
+  if(!contenido) return alert('Escribe el contenido');
+  const color = document.querySelector('input[name="gd-color"]:checked')?.value || '#7c3aed';
+  if(!cl.mxGuia) cl.mxGuia = [];
+  if(gdEditId) {
+    const d = cl.mxGuia.find(x => x.id===gdEditId);
+    if(d) { d.titulo=titulo; d.contenido=contenido; d.color=color; }
+  } else {
+    cl.mxGuia.push({ id:uid(), titulo, contenido, color, fecha:new Date().toISOString().slice(0,10) });
+  }
+  save(); cerrarModal('m-guia-def'); renderMxaGuia();
+}
+
+function mxaGuiaEliminar(id) {
+  if(!confirm('¿Eliminar esta definición?')) return;
+  cl.mxGuia = (cl.mxGuia||[]).filter(x=>x.id!==id);
+  save(); renderMxaGuia();
+}
+
+function mxaGuiaToggle(id) {
+  const body = document.getElementById('gd-body-'+id);
+  const btn = document.getElementById('gd-toggle-'+id);
+  if(!body) return;
+  const isOpen = body.style.display !== 'none';
+  body.style.display = isOpen ? 'none' : '';
+  btn.textContent = isOpen ? '▼ Ver' : '▲ Ocultar';
+}
+
+function renderMxaGuia() {
+  const c = document.getElementById('mxa-guia-list');
+  if(!c) return;
+  const lista = cl.mxGuia || [];
+  if(!lista.length) {
+    c.innerHTML = `<div style="text-align:center;padding:40px 20px;color:var(--muted);">
+      <div style="font-size:40px;margin-bottom:12px;">📚</div>
+      <div style="font-size:14px;font-weight:600;">Sin definiciones aún.</div>
+      <div style="font-size:12px;margin-top:4px;">Haz clic en "+ Nueva Definición" para agregar la guía de deseos y perfiles.</div>
+    </div>`;
+    return;
+  }
+  c.innerHTML = lista.map((d,i) => {
+    const lineas = d.contenido.split('\n');
+    const preview = lineas.slice(0,3).join('\n');
+    const hayMas = lineas.length > 3;
+    const contenidoHtml = d.contenido.split('\n').map(l =>
+      l.trim()==='' ? '<div style="height:8px;"></div>' :
+      `<div style="margin-bottom:2px;">${esc(l)}</div>`
+    ).join('');
+    return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;margin-bottom:14px;overflow:hidden;">
+      <div style="padding:14px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;" onclick="mxaGuiaToggle('${d.id}')">
+        <div style="width:4px;height:40px;background:${d.color||'#7c3aed'};border-radius:4px;flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div style="font-weight:800;font-size:14px;color:var(--text);">${esc(d.titulo)}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px;">${lineas.length} líneas · Agregado el ${d.fecha||''}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <button id="gd-toggle-${d.id}" class="btn btn-ghost btn-sm" style="font-size:11px;">▼ Ver</button>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();mxaGuiaEditar('${d.id}')">✏️</button>
+          <button class="btn btn-danger btn-sm" onclick="event.stopPropagation();mxaGuiaEliminar('${d.id}')">✕</button>
+        </div>
+      </div>
+      <div id="gd-body-${d.id}" style="display:none;padding:0 18px 18px 36px;border-top:1px solid var(--border);padding-top:14px;">
+        <div style="font-size:13px;line-height:1.7;color:var(--text);white-space:pre-wrap;font-family:inherit;">${contenidoHtml}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ===== GRABADOR (Alejandro) =====
