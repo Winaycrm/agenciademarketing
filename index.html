@@ -203,9 +203,9 @@ textarea { resize: vertical; }
 .cal-nav button { background:#fff; border:1.5px solid var(--border); border-radius:8px; padding:6px 14px; cursor:pointer; font-size:15px; font-weight:700; color:var(--text); }
 .cal-nav button:hover { background:var(--card2); }
 .cal-grid { background:#fff; border:1.5px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:20px; }
-.cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr); background:var(--accent); }
+.cal-weekdays { display:grid; grid-template-columns:repeat(7,1fr); background:var(--accent); grid-column: 1 / -1; }
 .cal-weekday { text-align:center; font-size:11px; font-weight:800; color:#fff; padding:8px 0; letter-spacing:.5px; }
-.cal-days { display:grid; grid-template-columns:repeat(7,1fr); }
+.cal-days { display:grid; grid-template-columns:repeat(7,1fr); grid-column: 1 / -1; }
 .cal-day { min-height:72px; border-right:1px solid var(--border); border-bottom:1px solid var(--border); padding:6px; cursor:pointer; transition:.15s; position:relative; }
 .cal-day:nth-child(7n) { border-right:none; }
 .cal-day:hover { background:#f5f3ff; }
@@ -2404,6 +2404,20 @@ function mpGuardarEnAds() {
       asignado, fechaInicio:new Date().toISOString().slice(0,10), fecha:'',
       prioridad:'media', estado:'pendiente', creadoPor:currentUser?.nombre||'Admin',
       creada:new Date().toISOString(), tipo:'hook', hookId:nuevoHook.id });
+    // Auto-crear pieza en Producción según formato
+    const tipoProd2 = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
+    if(!cl.produccion) cl.produccion = {};
+    if(!cl.produccion[tipoProd2]) cl.produccion[tipoProd2] = [];
+    const yaExiste2 = cl.produccion[tipoProd2].some(p => p.nomenHook === nomen);
+    if(!yaExiste2) {
+      cl.produccion[tipoProd2].push({
+        id:uid(), titulo:`🪝 ${nomen}`, copy:t.tema,
+        notas:`Perfil: ${c.perfil} · Deseo: ${c.deseo} · Nivel: ${nivel}`,
+        paso:0, asignados:[asignado], fechaLimite:null,
+        fecha:new Date().toISOString().slice(0,10),
+        nomenHook:nomen, hookId:nuevoHook.id
+      });
+    }
     addNotif(`📢 Hook de Marca Persona asignado a ${nomAsig} · "${t.tema.substring(0,40)}"`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
   }
   save(); cerrarModal('m-mp-en-ads');
@@ -4710,6 +4724,21 @@ function mxaGuardarHook() {
         creadoPor: currentUser?.nombre||'Admin', creada: new Date().toISOString(),
         tipo: 'hook', hookId: nuevoHook.id
       });
+      // Auto-crear pieza en Producción según formato
+      const tipoProd = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
+      if(!cl.produccion) cl.produccion = {};
+      if(!cl.produccion[tipoProd]) cl.produccion[tipoProd] = [];
+      const titulo = `🪝 ${nomen}`;
+      const yaExiste = cl.produccion[tipoProd].some(p => p.nomenHook === nomen);
+      if(!yaExiste) {
+        cl.produccion[tipoProd].push({
+          id: uid(), titulo, copy: hook,
+          notas: `Perfil: ${c.perfil} · Deseo: ${c.deseo} · Nivel: ${mxaDetNivel}`,
+          paso: 0, asignados: [asignado], fechaLimite: null,
+          fecha: new Date().toISOString().slice(0,10),
+          nomenHook: nomen, hookId: nuevoHook.id
+        });
+      }
       addNotif(`🪝 Hook asignado a ${nomAsig} · "${hook.substring(0,40)}"`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
     }
   }
