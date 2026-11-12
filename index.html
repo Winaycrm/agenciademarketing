@@ -2320,6 +2320,7 @@ function abrirNuevoTema() {
   document.getElementById('mp-volumen').value = '';
   document.getElementById('mp-busquedas').value = '';
   document.getElementById('mp-notas').value = '';
+  document.getElementById('mp-link-input').value = '';
   renderLinksTema();
   setDecisionMP('pendiente');
   abrirModal('m-tema');
@@ -2328,6 +2329,9 @@ function abrirNuevoTema() {
 function guardarTema() {
   const tema = document.getElementById('mp-tema').value.trim();
   if(!tema) return alert('Escribe el tema');
+  // Auto-agregar link si hay algo escrito en el input sin haber clickeado +Agregar
+  const linkPend = document.getElementById('mp-link-input').value.trim();
+  if(linkPend && linkPend.startsWith('http')) { mpLinks.push(linkPend); document.getElementById('mp-link-input').value = ''; }
   if(!cl.marcaPersona) cl.marcaPersona = { temas: [] };
   if(!cl.marcaPersona.temas) cl.marcaPersona.temas = [];
   if(mpEditId) {
@@ -2349,6 +2353,7 @@ function editarTema(id) {
   document.getElementById('mp-volumen').value = t.volumenTiktok || '';
   document.getElementById('mp-busquedas').value = t.volumenBusquedas || '';
   document.getElementById('mp-notas').value = t.notas || '';
+  document.getElementById('mp-link-input').value = '';
   renderLinksTema();
   setDecisionMP(mpDecision);
   abrirModal('m-tema');
