@@ -214,6 +214,8 @@ textarea { resize: vertical; }
 .cal-day.hoy { background:#ede9ff; }
 .cal-day.hoy .cal-day-num { color:var(--accent); font-weight:900; }
 .cal-day.selected { background:#f0fdf4; border:2px solid var(--green); }
+.cal-day.grab-bloqueado { background:#fff5f5; border-color:#fca5a5; }
+.cal-day.grab-bloqueado .cal-day-num { color:#ef4444; }
 .cal-day-num { font-size:13px; font-weight:700; margin-bottom:4px; }
 .cal-dots { display:flex; flex-wrap:wrap; gap:3px; margin-top:2px; }
 .cal-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
@@ -363,6 +365,7 @@ textarea { resize: vertical; }
           <option value="Diana1">👩 Diana1</option>
           <option value="Camila1">👩 Camila1</option>
           <option value="Franklin1">👨 Franklin1</option>
+          <option value="Alejandro1">🎥 Alejandro1</option>
         </select>
       </div>
       <div class="fg"><label>Contraseña</label><input id="l-wpass" type="password" placeholder="Tu contraseña" onkeydown="if(event.key==='Enter')doLogin()"></div>
@@ -513,6 +516,64 @@ textarea { resize: vertical; }
     <div class="fl">
       <button class="btn btn-ghost" onclick="cerrarModal('m-evento')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarEvento()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- VISTA: GRABADOR (Alejandro) -->
+<div id="v-grabador" style="display:none;">
+  <div class="top-bar" style="justify-content:space-between;">
+    <div style="font-weight:800;font-size:16px;">🎥 Mis Grabaciones — Alejandro</div>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button class="btn btn-sm" style="background:var(--accent);color:#fff;" onclick="abrirBloqueado()">🚫 Día bloqueado</button>
+      <button class="btn btn-ghost btn-sm" onclick="logout()">Salir</button>
+    </div>
+  </div>
+
+  <div style="max-width:900px;margin:24px auto;padding:0 16px;">
+
+    <!-- Navegación de mes -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+      <button class="btn btn-ghost btn-sm" onclick="grabMesAnterior()">‹ Anterior</button>
+      <div id="grab-titulo-mes" style="font-size:17px;font-weight:800;color:var(--text);"></div>
+      <button class="btn btn-ghost btn-sm" onclick="grabMesSiguiente()">Siguiente ›</button>
+    </div>
+
+    <!-- Grid calendario -->
+    <div class="cal-grid">
+      <div class="cal-weekdays">
+        <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div>
+        <div>Vie</div><div>Sáb</div><div>Dom</div>
+      </div>
+      <div class="cal-days" id="grab-days"></div>
+    </div>
+
+    <!-- Detalle día seleccionado -->
+    <div id="grab-dia-detalle" style="display:none;margin-top:12px;"></div>
+
+    <!-- Lista del mes -->
+    <div style="margin-top:20px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:8px;">TODAS MIS ACTIVIDADES DEL MES</div>
+      <div id="grab-list"></div>
+    </div>
+
+    <!-- Mis días bloqueados -->
+    <div style="margin-top:28px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:8px;">🚫 MIS DÍAS BLOQUEADOS</div>
+      <div id="grab-bloqueados-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NUEVO DÍA BLOQUEADO -->
+<div class="overlay" id="m-bloqueado">
+  <div class="modal" style="max-width:380px;">
+    <h2>🚫 Agregar día bloqueado</h2>
+    <div class="fg"><label>Fecha</label><input type="date" id="bl-fecha"></div>
+    <div class="fg"><label>Motivo (opcional)</label><input id="bl-notas" placeholder="Ej: Viaje, Cita médica..."></div>
+    <div class="fl">
+      <button class="btn btn-ghost" onclick="cerrarModal('m-bloqueado')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarBloqueado()">Guardar</button>
     </div>
   </div>
 </div>
@@ -1208,7 +1269,8 @@ async function save() {
       }
       await fsdb.collection('globals').doc('main').set({
         notificaciones: db.notificaciones || [],
-        asistencia: db.asistencia || {}
+        asistencia: db.asistencia || {},
+        bloqueados: db.bloqueados || {}
       }, { merge: true });
     } else {
       // FULL: guardar todos los clientes + globals (al agregar/eliminar clientes)
@@ -1218,7 +1280,8 @@ async function save() {
       });
       batch.set(fsdb.collection('globals').doc('main'), {
         notificaciones: db.notificaciones || [],
-        asistencia: db.asistencia || {}
+        asistencia: db.asistencia || {},
+        bloqueados: db.bloqueados || {}
       });
       await batch.commit();
     }
@@ -1246,7 +1309,8 @@ async function load() {
     db = {
       clientes,
       notificaciones: globals.notificaciones || [],
-      asistencia: globals.asistencia || {}
+      asistencia: globals.asistencia || {},
+      bloqueados: globals.bloqueados || {}
     };
 
     // Actualizar backup local
@@ -3306,6 +3370,232 @@ function eliminarEvento(id) {
   save(); renderCalendarioCliente();
 }
 
+// ===== GRABADOR (Alejandro) =====
+let grabMesActual = new Date().getMonth();
+let grabAnioActual = new Date().getFullYear();
+let grabDiaSeleccionado = null;
+
+function grabMesAnterior() {
+  grabMesActual--;
+  if(grabMesActual < 0) { grabMesActual = 11; grabAnioActual--; }
+  grabDiaSeleccionado = null;
+  renderGrabador();
+}
+function grabMesSiguiente() {
+  grabMesActual++;
+  if(grabMesActual > 11) { grabMesActual = 0; grabAnioActual++; }
+  grabDiaSeleccionado = null;
+  renderGrabador();
+}
+
+function grabObtenerEventos() {
+  const ev = [];
+  const hoyStr = new Date().toISOString().slice(0,10);
+
+  // Eventos de clientes donde Alejandro está en personas
+  (db.clientes || []).forEach(c => {
+    (c.eventos || []).forEach(e => {
+      if(e.personas && e.personas.includes('Alejandro')) {
+        ev.push({ ...e, _cliente: c.nombre, _clienteId: c.id, _tipo: 'evento' });
+      }
+    });
+    // Items de producción asignados a Alejandro con fechaLimite
+    const prod = c.produccion || {};
+    ['marcaPersona','video','flyer','impresion'].forEach(tipo => {
+      (prod[tipo]||[]).forEach(p => {
+        if(!p.fechaLimite) return;
+        if(!(p.asignados||[]).includes('Alejandro')) return;
+        const icon = tipo==='video'?'🎥':tipo==='marcaPersona'?'🎬':tipo==='flyer'?'🖼️':'🖨️';
+        ev.push({
+          id: 'prod_'+p.id, nombre: `${icon} ${p.titulo}`,
+          fecha: p.fechaLimite, hora: '', tipo: 'grabacion',
+          notas: p.notas||'', _cliente: c.nombre, _clienteId: c.id,
+          _tipo: 'produccion'
+        });
+      });
+    });
+  });
+
+  // Días bloqueados de Alejandro
+  const bloqs = (db.bloqueados && db.bloqueados['Alejandro']) || [];
+  bloqs.forEach(b => {
+    ev.push({ id: b.id, nombre: '🚫 Día bloqueado', fecha: b.fecha, hora: '', tipo: 'bloqueado',
+      notas: b.notas||'', _tipo: 'bloqueado' });
+  });
+
+  return ev;
+}
+
+function renderGrabador() {
+  if(!db) return;
+  const eventos = grabObtenerEventos();
+  const hoyStr = new Date().toISOString().slice(0,10);
+  const mes = grabMesActual;
+  const anio = grabAnioActual;
+
+  const nomMes = new Date(anio, mes, 1).toLocaleString('es',{month:'long', year:'numeric'});
+  document.getElementById('grab-titulo-mes').textContent = nomMes.charAt(0).toUpperCase() + nomMes.slice(1);
+
+  const primerDia = new Date(anio, mes, 1);
+  let inicioGrid = primerDia.getDay();
+  inicioGrid = (inicioGrid === 0) ? 6 : inicioGrid - 1;
+  const diasEnMes = new Date(anio, mes + 1, 0).getDate();
+  const diasMesAnterior = new Date(anio, mes, 0).getDate();
+
+  const evPorFecha = {};
+  eventos.forEach(e => {
+    if(!evPorFecha[e.fecha]) evPorFecha[e.fecha] = [];
+    evPorFecha[e.fecha].push(e);
+  });
+
+  let celdas = '';
+  const totalCeldas = Math.ceil((inicioGrid + diasEnMes) / 7) * 7;
+  for(let i = 0; i < totalCeldas; i++) {
+    let diaN, fechaStr, esOtroMes = false;
+    if(i < inicioGrid) {
+      diaN = diasMesAnterior - inicioGrid + 1 + i;
+      const m = mes===0?12:mes; const a = mes===0?anio-1:anio;
+      fechaStr = `${a}-${String(m).padStart(2,'0')}-${String(diaN).padStart(2,'0')}`;
+      esOtroMes = true;
+    } else if(i < inicioGrid + diasEnMes) {
+      diaN = i - inicioGrid + 1;
+      fechaStr = `${anio}-${String(mes+1).padStart(2,'0')}-${String(diaN).padStart(2,'0')}`;
+    } else {
+      diaN = i - inicioGrid - diasEnMes + 1;
+      const m = mes===11?1:mes+2; const a = mes===11?anio+1:anio;
+      fechaStr = `${a}-${String(m).padStart(2,'0')}-${String(diaN).padStart(2,'0')}`;
+      esOtroMes = true;
+    }
+    const esHoy = fechaStr === hoyStr;
+    const esSeleccionado = fechaStr === grabDiaSeleccionado;
+    const evs = evPorFecha[fechaStr] || [];
+    const tieneBloqueado = evs.some(e => e._tipo === 'bloqueado');
+
+    const dots = evs.map(e => `<span class="cal-dot" style="background:${e._tipo==='bloqueado'?'#ef4444':e.tipo==='grabacion'?'#7c3aed':'#2563eb'};" title="${e.nombre}"></span>`).join('');
+    const nombreCorto = evs.slice(0,2).map(e => `<div style="font-size:9px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${e.nombre}</div>`).join('');
+
+    const cls = ['cal-day', esOtroMes?'other-month':'', esHoy?'hoy':'', esSeleccionado?'selected':'', tieneBloqueado?'grab-bloqueado':''].filter(Boolean).join(' ');
+    celdas += `<div class="${cls}" onclick="grabSelDia('${fechaStr}')">
+      <div class="cal-day-num">${diaN}</div>
+      <div class="cal-dots">${dots}</div>
+      ${nombreCorto}
+    </div>`;
+  }
+  document.getElementById('grab-days').innerHTML = celdas;
+
+  // Detalle día
+  const detalle = document.getElementById('grab-dia-detalle');
+  if(grabDiaSeleccionado) {
+    const dEvs = evPorFecha[grabDiaSeleccionado] || [];
+    const fechaD = new Date(grabDiaSeleccionado+'T12:00:00');
+    const lblFecha = fechaD.toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'});
+    detalle.style.display = 'block';
+    if(dEvs.length) {
+      detalle.innerHTML = `<div class="cal-selected-evs"><h3>📅 ${lblFecha.charAt(0).toUpperCase()+lblFecha.slice(1)}</h3>`+
+        dEvs.map(e => `<div class="evento-card" style="margin-bottom:8px;border-left:3px solid ${e._tipo==='bloqueado'?'#ef4444':'#7c3aed'};">
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:14px;">${e.nombre}${e.hora?` 🕐 ${e.hora}`:''}</div>
+            ${e._cliente?`<div style="font-size:11px;color:var(--accent);font-weight:600;">📋 ${e._cliente}</div>`:''}
+            ${e.notas?`<div style="font-size:12px;color:var(--muted);">${e.notas}</div>`:''}
+          </div>
+          ${e._tipo==='bloqueado'?`<button class="btn btn-danger btn-sm" onclick="eliminarBloqueado('${e.id}')">✕</button>`:''}
+        </div>`).join('')+
+        `</div>`;
+    } else {
+      detalle.innerHTML = `<div class="cal-selected-evs"><h3>📅 ${lblFecha.charAt(0).toUpperCase()+lblFecha.slice(1)}</h3><div style="font-size:13px;color:var(--muted);">Sin actividades este día.</div></div>`;
+    }
+  } else {
+    detalle.style.display = 'none';
+  }
+
+  // Lista del mes
+  const delMes = eventos.filter(e => {
+    const [ay,am] = e.fecha.split('-').map(Number);
+    return ay===anio && am===mes+1;
+  }).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const listEl = document.getElementById('grab-list');
+  if(!delMes.length) {
+    listEl.innerHTML = '<div style="font-size:13px;color:var(--muted);text-align:center;padding:16px 0;">Sin actividades este mes.</div>';
+  } else {
+    listEl.innerHTML = delMes.map(e => {
+      const dia = new Date(e.fecha+'T12:00:00').getDate();
+      const mon = new Date(e.fecha+'T12:00:00').toLocaleString('es',{month:'short'}).toUpperCase();
+      const diasFaltan = Math.ceil((new Date(e.fecha+'T12:00:00')-new Date())/86400000);
+      const faltan = diasFaltan>0?`en ${diasFaltan} días`:diasFaltan===0?'🔴 ¡Hoy!':`hace ${-diasFaltan} días`;
+      return `<div class="evento-card" style="cursor:pointer;margin-bottom:8px;border-left:3px solid ${e._tipo==='bloqueado'?'#ef4444':'#7c3aed'};" onclick="grabSelDia('${e.fecha}')">
+        <div style="text-align:center;min-width:44px;">
+          <div style="font-size:22px;font-weight:800;color:#7c3aed;line-height:1;">${dia}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;">${mon}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;">${e.nombre}${e.hora?` 🕐 ${e.hora}`:''}</div>
+          <div style="font-size:12px;color:var(--muted);">${faltan}</div>
+          ${e._cliente?`<div style="font-size:11px;color:var(--accent);font-weight:600;">📋 ${e._cliente}</div>`:''}
+          ${e.notas?`<div style="font-size:11px;color:#9ca3af;">${e.notas}</div>`:''}
+        </div>
+        ${e._tipo==='bloqueado'?`<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarBloqueado('${e.id}')">✕</button>`:''}
+      </div>`;
+    }).join('');
+  }
+
+  // Bloqueados list
+  const bloqs = (db.bloqueados && db.bloqueados['Alejandro']) || [];
+  const blEl = document.getElementById('grab-bloqueados-list');
+  if(!bloqs.length) {
+    blEl.innerHTML = '<div style="font-size:13px;color:var(--muted);">No tienes días bloqueados.</div>';
+  } else {
+    blEl.innerHTML = bloqs.sort((a,b)=>a.fecha.localeCompare(b.fecha)).map(b => {
+      const fechaD = new Date(b.fecha+'T12:00:00').toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'});
+      return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:#fef2f2;border-radius:8px;margin-bottom:6px;border:1px solid #fecaca;">
+        <div style="font-size:18px;">🚫</div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:13px;color:#991b1b;">${fechaD.charAt(0).toUpperCase()+fechaD.slice(1)}</div>
+          ${b.notas?`<div style="font-size:12px;color:#b91c1c;">${b.notas}</div>`:''}
+        </div>
+        <button class="btn btn-danger btn-sm" onclick="eliminarBloqueado('${b.id}')">✕</button>
+      </div>`;
+    }).join('');
+  }
+}
+
+function grabSelDia(fechaStr) {
+  grabDiaSeleccionado = (grabDiaSeleccionado===fechaStr) ? null : fechaStr;
+  const [ay,am] = fechaStr.split('-').map(Number);
+  grabAnioActual=ay; grabMesActual=am-1;
+  renderGrabador();
+}
+
+function abrirBloqueado() {
+  document.getElementById('bl-fecha').value = grabDiaSeleccionado || new Date().toISOString().slice(0,10);
+  document.getElementById('bl-notas').value = '';
+  abrirModal('m-bloqueado');
+}
+
+async function guardarBloqueado() {
+  const fecha = document.getElementById('bl-fecha').value;
+  if(!fecha) return alert('Elige una fecha');
+  const notas = document.getElementById('bl-notas').value;
+  if(!db.bloqueados) db.bloqueados = {};
+  if(!db.bloqueados['Alejandro']) db.bloqueados['Alejandro'] = [];
+  // Evitar duplicados
+  if(db.bloqueados['Alejandro'].some(b => b.fecha===fecha)) {
+    alert('Ya tienes ese día bloqueado.'); return;
+  }
+  db.bloqueados['Alejandro'].push({ id: uid(), fecha, notas });
+  cerrarModal('m-bloqueado');
+  await save();
+  renderGrabador();
+}
+
+async function eliminarBloqueado(id) {
+  if(!confirm('¿Quitar este día bloqueado?')) return;
+  if(db.bloqueados && db.bloqueados['Alejandro']) {
+    db.bloqueados['Alejandro'] = db.bloqueados['Alejandro'].filter(b => b.id!==id);
+  }
+  await save();
+  renderGrabador();
+}
+
 // ===== AUTH =====
 const USUARIOS = [
   { user:'Winay',    pass:'Winay2024',        rol:'empresa',     nombre:'Agencia Winay' },
@@ -3313,7 +3603,8 @@ const USUARIOS = [
   { user:'Andrea1',  pass:'Teamoenrique',    rol:'trabajador',  nombre:'Andrea Ponce' },
   { user:'Diana1',   pass:'Diana1',           rol:'trabajador',  nombre:'Diana' },
   { user:'Camila1',  pass:'Camila1',          rol:'supervisor',  nombre:'Camila' },
-  { user:'Franklin1',pass:'Franklin1',        rol:'trabajador',  nombre:'Franklin' },
+  { user:'Franklin1',  pass:'Franklin1',        rol:'trabajador',  nombre:'Franklin' },
+  { user:'Alejandro1', pass:'Alejandro1',       rol:'grabador',    nombre:'Alejandro' },
 ];
 let currentUser = null;
 
@@ -3346,7 +3637,10 @@ function doLogin() {
   actualizarUserChips();
   renderNotifBell();
   // Redirigir según rol
-  if(usuario.rol === 'empresa') {
+  if(usuario.rol === 'grabador') {
+    document.getElementById('v-grabador').style.display = '';
+    renderGrabador();
+  } else if(usuario.rol === 'empresa') {
     document.getElementById('v-clientes').style.display = '';
   } else {
     // trabajador / supervisor → ir directo a Mis Pendientes
@@ -3362,6 +3656,7 @@ function logout() {
   document.getElementById('login-overlay').style.display = 'flex';
   document.getElementById('v-clientes').style.display = 'none';
   document.getElementById('v-cliente').style.display = 'none';
+  document.getElementById('v-grabador').style.display = 'none';
   // Limpiar campos
   document.getElementById('l-user').value = '';
   document.getElementById('l-pass').value = '';
