@@ -5548,17 +5548,6 @@ function mxaGuardarHook() {
       if(asignado && asignado !== asignadoAnterior) {
         const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
         const nomen = r.hook.nomen || '';
-        // Crear tarea para que aparezca en Mis Pendientes
-        if(!cl.tareas) cl.tareas = [];
-        cl.tareas.push({
-          id: uid(),
-          titulo: `🪝 Producir hook "${hook.substring(0,50)}${hook.length>50?'…':''}"`,
-          desc: `Formato: ${fmt} · Nivel: ${mxaDetNivel} · Nomenclatura: ${nomen}`,
-          asignado, fechaInicio: new Date().toISOString().slice(0,10), fecha: fechaLimiteHook || '',
-          prioridad: 'media', estado: 'pendiente',
-          creadoPor: currentUser?.nombre||'Admin', creada: new Date().toISOString(),
-          tipo: 'hook', hookId: mxaEditHookId
-        });
         // Crear o actualizar pieza en producción
         const tipoProd2 = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
         if(!cl.produccion) cl.produccion = {};
@@ -5587,17 +5576,7 @@ function mxaGuardarHook() {
     mxaSetHooks(mxaDetConceptoId, mxaDetNivel, [...existing, nuevoHook]);
     // Auto-crear tarea pendiente si hay alguien asignado
     if(asignado) {
-      if(!cl.tareas) cl.tareas = [];
       const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
-      cl.tareas.push({
-        id: uid(),
-        titulo: `🪝 Producir hook "${hook.substring(0,50)}${hook.length>50?'…':''}"`,
-        desc: `Formato: ${fmt} · Nivel: ${mxaDetNivel} · Perfil: ${c.perfil} · Deseo: ${c.deseo}\nNomenclatura: ${nomen}`,
-        asignado, fechaInicio: new Date().toISOString().slice(0,10), fecha: fechaLimiteHook || '',
-        prioridad: 'media', estado: 'pendiente',
-        creadoPor: currentUser?.nombre||'Admin', creada: new Date().toISOString(),
-        tipo: 'hook', hookId: nuevoHook.id
-      });
       // Auto-crear pieza en Producción según formato
       const tipoProd = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
       if(!cl.produccion) cl.produccion = {};
