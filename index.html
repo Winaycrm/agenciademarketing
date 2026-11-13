@@ -950,6 +950,9 @@ textarea { resize: vertical; }
         <option value="N5">N5 — Totalmente Consciente</option>
       </select>
     </div>
+    <div class="fg"><label>📅 Fecha límite <span style="font-weight:400;color:var(--muted);">(opcional)</span></label>
+      <input type="date" id="mpads-fecha">
+    </div>
     <div class="fl">
       <button class="btn btn-ghost" onclick="cerrarModal('m-mp-en-ads')">Cancelar</button>
       <button class="btn btn-primary" onclick="mpGuardarEnAds()">📢 Asignar</button>
@@ -2602,6 +2605,7 @@ async function mpGuardarEnAds() {
 
   const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
   const tipoProd = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
+  const fechaLimite = document.getElementById('mpads-fecha').value || null;
 
   // Siempre crear pieza en producción
   if(!cl.produccion) cl.produccion = {};
@@ -2610,7 +2614,7 @@ async function mpGuardarEnAds() {
   cl.produccion[tipoProd].push({
     id:uid(), titulo:t.tema, copy:'',
     notas:`${FMT_LBL[fmt]||fmt} · Desde Marca Persona`,
-    paso:0, asignados:[asignado], fechaLimite:null,
+    paso:0, asignados:[asignado], fechaLimite,
     fecha:new Date().toISOString().slice(0,10),
     desdeMarcaPersona:true
   });
@@ -2619,7 +2623,7 @@ async function mpGuardarEnAds() {
   if(!cl.tareas) cl.tareas = [];
   cl.tareas.push({ id:uid(), titulo:`🎬 ${t.tema}`,
     desc:`Formato: ${FMT_LBL[fmt]||fmt}${t.notas?'\n'+t.notas:''}`,
-    asignado, fechaInicio:new Date().toISOString().slice(0,10), fecha:'',
+    asignado, fechaInicio:new Date().toISOString().slice(0,10), fecha: fechaLimite || '',
     prioridad:'media', estado:'pendiente', creadoPor:currentUser?.nombre||'Admin',
     creada:new Date().toISOString() });
 
@@ -2643,10 +2647,12 @@ async function mpGuardarEnAds() {
   cerrarModal('m-mp-en-ads');
   await save();
   mostrarEstado(`✅ "${t.tema.substring(0,30)}" asignado a ${nomAsig} — Producción > ${tipoProd==='video'?'Videos':'Flyers'}`);
-  // Navegar al kanban para confirmar visualmente
-  document.querySelectorAll('#t-produccion .tabs .tab').forEach(tb=>tb.classList.remove('active'));
-  const tabEl = document.querySelector(`#t-produccion .tabs .tab[onclick*="${tipoProd}"]`);
-  if(tabEl) { tabEl.classList.add('active'); produccionTab(tipoProd, tabEl); }
+  // Navegar al tab Producción del cliente y luego al sub-tab correcto
+  const tabProdEl = document.querySelector('#v-cliente > .tabs .tab[onclick*="produccion"]');
+  if(tabProdEl) { tab('produccion', tabProdEl); }
+  // Luego al sub-tab (video o flyer)
+  const subTabEl = document.querySelector(`#t-produccion .tabs .tab[onclick*="tabProd"][onclick*="${tipoProd}"]`);
+  if(subTabEl) { tabProd(tipoProd, subTabEl); }
 }
 
 // ===== SUB-TABS NOTAS/TAREAS =====
