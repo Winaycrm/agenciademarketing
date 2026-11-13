@@ -860,6 +860,9 @@ textarea { resize: vertical; }
         <option value="">— Sin asignar —</option>
       </select>
     </div>
+    <div class="fg"><label>📅 Fecha límite <span style="font-weight:400;color:var(--muted);">(opcional)</span></label>
+      <input type="date" id="mxah-fecha">
+    </div>
     <div class="fg"><label>Nomenclatura generada</label>
       <div id="mxah-nomen" style="font-family:monospace;font-size:12px;color:var(--accent);background:#ede9ff;padding:8px 12px;border-radius:8px;"></div>
     </div>
@@ -3096,11 +3099,21 @@ function guardarPieza() {
       pieza.notas = v('pz-notas');
       pieza.fechaLimite = fechaLimite;
       if(imagenBase64) pieza.imagen = imagenBase64;
-      // Notificar nuevos asignados
+      // Notificar y crear tareas para nuevos asignados
       const nuevos = asignados.filter(u => !asignadosAnteriores.includes(u));
       pieza.asignados = asignados;
       const tipoLbl2 = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona' }[tipo]||tipo;
-      nuevos.forEach(u => { const n=USUARIOS.find(x=>x.user===u)?.nombre||u; addNotif(`📌 Cliente: ${cl.nombre} · ${tipoLbl2}: "${titulo}" asignado a ${n}${fechaLimite?' · Vence: '+fechaLimite:''}`, 'asignacion', [u], `cliente:${cl.id}:produccion`); });
+      nuevos.forEach(u => {
+        const n=USUARIOS.find(x=>x.user===u)?.nombre||u;
+        addNotif(`📌 Cliente: ${cl.nombre} · ${tipoLbl2}: "${titulo}" asignado a ${n}${fechaLimite?' · Vence: '+fechaLimite:''}`, 'asignacion', [u], `cliente:${cl.id}:produccion`);
+        // Crear tarea para que aparezca en Mis Pendientes
+        if(!cl.tareas) cl.tareas = [];
+        cl.tareas.push({ id:uid(), titulo:`🎬 ${titulo}`,
+          desc:`${tipoLbl2} · Asignado por ${currentUser?.nombre||'Admin'}${v('pz-notas')?'\n'+v('pz-notas'):''}`,
+          asignado:u, fechaInicio:new Date().toISOString().slice(0,10), fecha: fechaLimite || '',
+          prioridad:'media', estado:'pendiente', creadoPor:currentUser?.nombre||'Admin',
+          creada:new Date().toISOString() });
+      });
       if(!nuevos.length) addNotif(`✏️ Cliente: ${cl.nombre} · ${tipoLbl2}: "${titulo}" actualizado`, 'edicion', asignados.length?asignados:'todos', `cliente:${cl.id}:produccion`);
     }
   } else {
@@ -4825,69 +4838,87 @@ function renderPendientes() {
     return;
   }
 
-  // Totales
-  const totalTareas = bloques.reduce((s,b) => s + b.tareas.filter(t=>t.estado!=='completada').length, 0);
-  const totalPiezas = bloques.reduce((s,b) => s + b.piezas.filter(p=>!p._esFinal).length, 0);
+  // Aplanar todos los items en una lista única con metadata
+  const hoyStr = hoyD.toISOString().slice(0,10);
+  const todosItems = [];
+  bloques.forEach(({ cl2, tareas, piezas }) => {
+    tareas.filter(t => t.estado !== 'completada').forEach(t => {
+      const fechaItem = t.fecha || '';
+      let urgencia = 'sinFecha';
+      if(fechaItem) {
+        const d = new Date(fechaItem+' 00:00:00');
+        urgencia = d <= hoyD ? 'urgente' : 'proxima';
+      }
+      todosItems.push({ tipo:'tarea', data:t, clienteNombre:cl2.nombre, clienteId:cl2.id, fechaItem, urgencia });
+    });
+    piezas.filter(p => !p._esFinal).forEach(p => {
+      const fechaItem = p.fechaLimite || '';
+      let urgencia = 'sinFecha';
+      if(fechaItem) {
+        const d = new Date(fechaItem+' 00:00:00');
+        urgencia = d <= hoyD ? 'urgente' : 'proxima';
+      }
+      todosItems.push({ tipo:'pieza', data:p, clienteNombre:cl2.nombre, clienteId:cl2.id, fechaItem, urgencia });
+    });
+  });
 
-  const seccion = ({ cl2, tareas, piezas }) => {
-    const tPend = tareas.filter(t => t.estado !== 'completada');
-    const pPend = piezas.filter(p => !p._esFinal);
-    const pendTotal = tPend.length + pPend.length;
-    if(!pendTotal) return ''; // Solo mostrar clientes con pendientes activos
+  const urgentes = todosItems.filter(i => i.urgencia === 'urgente').sort((a,b) => a.fechaItem.localeCompare(b.fechaItem));
+  const proximas = todosItems.filter(i => i.urgencia === 'proxima').sort((a,b) => a.fechaItem.localeCompare(b.fechaItem));
+  const sinFecha = todosItems.filter(i => i.urgencia === 'sinFecha');
 
-    const cardTarea = t => {
-      const vencida = t.fecha && new Date(t.fecha+' 00:00:00') < hoyD && t.estado !== 'completada';
-      const nomAsig = USUARIOS.find(u => u.user === t.asignado)?.nombre || t.asignado || '—';
-      return `<div style="background:#fff;border:1.5px solid ${t.estado==='completada'?'var(--green)':vencida?'#fca5a5':'var(--border)'};border-radius:10px;padding:10px 12px;margin-bottom:8px;opacity:${t.estado==='completada'?'.6':'1'};">
+  const cardItem = item => {
+    const { tipo, data: t, clienteNombre, clienteId } = item;
+    if(tipo === 'tarea') {
+      const vencida = t.fecha && new Date(t.fecha+' 00:00:00') < hoyD;
+      const esHoy   = t.fecha === hoyStr;
+      const bgColor = vencida ? '#fff5f5' : esHoy ? '#fffbeb' : '#fff';
+      const borderColor = vencida ? '#fca5a5' : esHoy ? '#fcd34d' : 'var(--border)';
+      return `<div style="background:${bgColor};border:1.5px solid ${borderColor};border-radius:10px;padding:10px 12px;margin-bottom:8px;">
         <div style="display:flex;gap:6px;align-items:flex-start;">
-          <input type="checkbox" ${t.estado==='completada'?'checked':''} style="margin-top:3px;width:auto;accent-color:var(--green);cursor:pointer;"
-            onchange="toggleTareaGlobal('${t.id}','${t.clienteId}');renderPendientes();">
-          <div style="flex:1;cursor:pointer;" onclick="verDetalleTarea('${t.id}','${t.clienteId}')">
-            <div style="margin-bottom:4px;">
-              <span style="font-size:10px;font-weight:700;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:20px;">👤 ${nomAsig}</span>
+          <input type="checkbox" style="margin-top:3px;width:auto;accent-color:var(--green);cursor:pointer;"
+            onchange="toggleTareaGlobal('${t.id}','${clienteId}');renderPendientes();">
+          <div style="flex:1;cursor:pointer;" onclick="verDetalleTarea('${t.id}','${clienteId}')">
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px;">
+              <span style="font-size:10px;font-weight:700;background:#f0f4ff;color:#3b5bdb;padding:2px 8px;border-radius:20px;">📁 ${clienteNombre}</span>
+              <span style="font-size:10px;font-weight:700;background:#f1f3f5;color:#495057;padding:2px 8px;border-radius:20px;">📋 Tarea</span>
             </div>
-            <div style="font-weight:700;font-size:13px;text-decoration:${t.estado==='completada'?'line-through':'none'};color:${vencida?'#dc2626':'var(--text)'};">${PRIOR[t.prioridad]||'🟡'} ${t.titulo}</div>
+            <div style="font-weight:700;font-size:13px;color:${vencida?'#dc2626':esHoy?'#92400e':'var(--text)'};">${PRIOR[t.prioridad]||'🟡'} ${t.titulo}</div>
             ${t.desc?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${t.desc}</div>`:''}
-            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
-              ${t.fechaInicio?`<span style="font-size:10px;color:var(--muted);">📅 Inicio: ${t.fechaInicio}</span>`:''}
-              ${t.fecha?`<span style="font-size:11px;font-weight:700;color:${vencida?'#dc2626':'var(--accent)'};">${vencida?'⚠️ Vencida:':'⏰ Límite:'} ${t.fecha}</span>`:''}
-            </div>
-            <div style="font-size:10px;color:var(--accent);margin-top:3px;">Ver detalle →</div>
+            ${t.fecha?`<div style="font-size:11px;font-weight:800;color:${vencida?'#dc2626':esHoy?'#b45309':'var(--accent)'};margin-top:4px;">${vencida?'⚠️ Vencida:':esHoy?'🔥 Vence hoy:':'⏰ Límite:'} ${t.fecha}</div>`:''}
           </div>
         </div>
       </div>`;
-    };
-
-    const cardPieza = p => {
-      const vencida = p.fechaLimite && new Date(p.fechaLimite+' 00:00:00') < hoyD && !p._esFinal;
-      const nomAsigs = (p.asignados||[]).map(u => USUARIOS.find(x=>x.user===u)?.nombre || u).join(', ');
-      return `<div style="background:#fff;border:1.5px solid ${p._esFinal?'var(--green)':vencida?'#fca5a5':'#e0d5ff'};border-radius:10px;padding:10px 12px;margin-bottom:8px;opacity:${p._esFinal?'.65':'1'};">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;flex-wrap:wrap;">
+    } else {
+      const p = t;
+      const vencida = p.fechaLimite && new Date(p.fechaLimite+' 00:00:00') < hoyD;
+      const esHoy   = p.fechaLimite === hoyStr;
+      const bgColor = vencida ? '#fff5f5' : esHoy ? '#fffbeb' : '#fff';
+      const borderColor = vencida ? '#fca5a5' : esHoy ? '#fcd34d' : '#e0d5ff';
+      return `<div style="background:${bgColor};border:1.5px solid ${borderColor};border-radius:10px;padding:10px 12px;margin-bottom:8px;">
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px;">
+          <span style="font-size:10px;font-weight:700;background:#f0f4ff;color:#3b5bdb;padding:2px 8px;border-radius:20px;">📁 ${clienteNombre}</span>
           <span style="font-size:10px;font-weight:700;background:#ede9ff;color:var(--accent);padding:2px 8px;border-radius:20px;">${TIPO_ICON[p._tipo]} ${TIPO_LBL[p._tipo]}</span>
-          <span style="font-size:10px;font-weight:700;background:${p._esFinal?'#dcfce7':'#f3f4f6'};color:${p._esFinal?'#16a34a':'var(--muted)'};padding:2px 8px;border-radius:20px;">${p._esFinal?'✅ ':''} ${p._pasoLabel}</span>
-          ${nomAsigs?`<span style="font-size:10px;font-weight:700;background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:20px;">👤 ${nomAsigs}</span>`:''}
+          <span style="font-size:10px;font-weight:700;background:#f3f4f6;color:var(--muted);padding:2px 8px;border-radius:20px;">${p._pasoLabel}</span>
         </div>
-        <div style="font-weight:700;font-size:13px;color:${vencida?'#dc2626':'var(--text)'};">${p.titulo||'Sin título'}</div>
+        <div style="font-weight:700;font-size:13px;color:${vencida?'#dc2626':esHoy?'#92400e':'var(--text)'};">${p.titulo||'Sin título'}</div>
         ${p.copy?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.copy}</div>`:''}
-        ${p.fechaLimite?`<div style="font-size:10px;font-weight:700;color:${vencida?'#dc2626':'var(--accent)'};margin-top:4px;">${vencida?'⚠️ Vencida:':'⏰ Límite:'} ${p.fechaLimite}</div>`:''}
+        ${p.fechaLimite?`<div style="font-size:11px;font-weight:800;color:${vencida?'#dc2626':esHoy?'#b45309':'var(--accent)'};margin-top:4px;">${vencida?'⚠️ Vencida:':esHoy?'🔥 Vence hoy:':'⏰ Límite:'} ${p.fechaLimite}</div>`:''}
       </div>`;
-    };
+    }
+  };
 
-    return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,.05);">
-      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer;" onclick="abrirCliente('${cl2.id}')">
-        <span style="font-size:15px;font-weight:800;">📁 ${cl2.nombre}</span>
-        ${pendTotal?`<span style="background:var(--accent);color:#fff;font-size:11px;padding:2px 9px;border-radius:20px;">${pendTotal} pendiente${pendTotal!==1?'s':''}</span>`:''}
-        <span style="font-size:11px;color:var(--accent);">→ Abrir cliente</span>
+  const grupo = (items, titulo, colorBg, colorBorde, colorTitulo, ico) => {
+    if(!items.length) return '';
+    return `<div style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+        <div style="background:${colorBg};border:1.5px solid ${colorBorde};border-radius:10px;padding:6px 14px;display:flex;align-items:center;gap:8px;">
+          <span style="font-size:14px;">${ico}</span>
+          <span style="font-size:13px;font-weight:800;color:${colorTitulo};">${titulo}</span>
+          <span style="background:${colorBorde};color:#fff;font-size:11px;font-weight:700;padding:1px 8px;border-radius:20px;">${items.length}</span>
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;gap:0;">
-        ${tPend.length ? `<div style="margin-bottom:8px;">
-          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">📋 Tareas</div>
-          ${tPend.map(cardTarea).join('')}
-        </div>` : ''}
-        ${pPend.length ? `<div>
-          <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">🎬 Producción</div>
-          ${pPend.map(cardPieza).join('')}
-        </div>` : ''}
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;align-items:start;">
+        ${items.map(i => `<div>${cardItem(i)}</div>`).join('')}
       </div>
     </div>`;
   };
@@ -4895,12 +4926,13 @@ function renderPendientes() {
   c.innerHTML = `
     <div style="margin-bottom:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <h2 style="font-size:20px;font-weight:800;">📌 Mis Pendientes</h2>
-      ${totalTareas?`<span style="background:#ede9ff;color:var(--accent);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">📋 ${totalTareas} tarea${totalTareas!==1?'s':''}</span>`:''}
-      ${totalPiezas?`<span style="background:#ede9ff;color:var(--accent);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">🎬 ${totalPiezas} pieza${totalPiezas!==1?'s':''}</span>`:''}
+      ${urgentes.length?`<span style="background:#fee2e2;color:#dc2626;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">🔴 ${urgentes.length} urgente${urgentes.length!==1?'s':''}</span>`:''}
+      ${proximas.length?`<span style="background:#fef3c7;color:#92400e;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">🟡 ${proximas.length} próxima${proximas.length!==1?'s':''}</span>`:''}
+      ${sinFecha.length?`<span style="background:#f1f3f5;color:var(--muted);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">⚪ ${sinFecha.length} sin fecha</span>`:''}
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;align-items:start;">
-      ${bloques.map(seccion).join('')}
-    </div>
+    ${grupo(urgentes, 'Para hoy', '#fff5f5', '#ef4444', '#dc2626', '🔴')}
+    ${grupo(proximas, 'Próximas', '#fffbeb', '#f59e0b', '#92400e', '🟡')}
+    ${grupo(sinFecha, 'Sin fecha límite', '#f8f9fa', '#adb5bd', '#6c757d', '⚪')}
   `;
 }
 
@@ -5420,6 +5452,7 @@ function mxaAbrirNuevoHook() {
   document.getElementById('mxah-hook').value = '';
   document.getElementById('mxah-formato').value = 'imagen';
   document.getElementById('mxah-estado').value = 'pendiente';
+  document.getElementById('mxah-fecha').value = '';
   mxaPopularAsignadoSelect('');
   mxaActualizarNomen();
   abrirModal('m-mxa-hook');
@@ -5432,6 +5465,7 @@ function mxaAbrirEditHook(hId) {
   document.getElementById('mxah-hook').value = h.hook||'';
   document.getElementById('mxah-formato').value = h.formato||'imagen';
   document.getElementById('mxah-estado').value = h.estado||'pendiente';
+  document.getElementById('mxah-fecha').value = h.fechaLimite||'';
   mxaPopularAsignadoSelect(h.asignado||'');
   mxaActualizarNomen();
   abrirModal('m-mxa-hook');
@@ -5475,17 +5509,55 @@ function mxaGuardarHook() {
   const fmt = document.getElementById('mxah-formato').value;
   const estado = document.getElementById('mxah-estado').value;
   const asignado = document.getElementById('mxah-asignado').value;
+  const fechaLimiteHook = document.getElementById('mxah-fecha').value || null;
   const c = mxaConceptos().find(x=>x.id===mxaDetConceptoId);
   if(!c) return;
 
   if(mxaEditHookId) {
     const r = mxaFindHook(mxaEditHookId);
-    if(r){ r.hook.formato=fmt; r.hook.hook=hook; r.hook.estado=estado; r.hook.asignado=asignado; }
+    if(r) {
+      const asignadoAnterior = r.hook.asignado || '';
+      r.hook.formato=fmt; r.hook.hook=hook; r.hook.estado=estado; r.hook.asignado=asignado; r.hook.fechaLimite=fechaLimiteHook;
+      // Si se asignó alguien nuevo (antes no había o era distinto)
+      if(asignado && asignado !== asignadoAnterior) {
+        const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
+        const nomen = r.hook.nomen || '';
+        // Crear tarea para que aparezca en Mis Pendientes
+        if(!cl.tareas) cl.tareas = [];
+        cl.tareas.push({
+          id: uid(),
+          titulo: `🪝 Producir hook "${hook.substring(0,50)}${hook.length>50?'…':''}"`,
+          desc: `Formato: ${fmt} · Nivel: ${mxaDetNivel} · Nomenclatura: ${nomen}`,
+          asignado, fechaInicio: new Date().toISOString().slice(0,10), fecha: fechaLimiteHook || '',
+          prioridad: 'media', estado: 'pendiente',
+          creadoPor: currentUser?.nombre||'Admin', creada: new Date().toISOString(),
+          tipo: 'hook', hookId: mxaEditHookId
+        });
+        // Crear o actualizar pieza en producción
+        const tipoProd2 = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
+        if(!cl.produccion) cl.produccion = {};
+        if(!cl.produccion[tipoProd2]) cl.produccion[tipoProd2] = [];
+        const piezaExistente = cl.produccion[tipoProd2].find(p => p.hookId === mxaEditHookId);
+        if(piezaExistente) {
+          if(!(piezaExistente.asignados||[]).includes(asignado)) piezaExistente.asignados = [...(piezaExistente.asignados||[]), asignado];
+          if(fechaLimiteHook) piezaExistente.fechaLimite = fechaLimiteHook;
+        } else {
+          cl.produccion[tipoProd2].push({
+            id: uid(), titulo: `🪝 ${nomen || hook.substring(0,40)}`, copy: hook,
+            notas: `Formato: ${fmt} · Nivel: ${mxaDetNivel}`,
+            paso: 0, asignados: [asignado], fechaLimite: fechaLimiteHook,
+            fecha: new Date().toISOString().slice(0,10),
+            nomenHook: nomen, hookId: mxaEditHookId
+          });
+        }
+        addNotif(`🪝 Hook asignado a ${nomAsig} · "${hook.substring(0,40)}"${fechaLimiteHook?' · Vence: '+fechaLimiteHook:''}`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
+      }
+    }
   } else {
     const existing = mxaHooks(mxaDetConceptoId, mxaDetNivel);
     const nomen = mxaBuildNomen(c, mxaDetNivel, fmt, existing.length+1);
     const nuevoHook = { id:uid(), formato:fmt, hook, estado, asignado,
-      nomen, version: existing.length+1, listo:false };
+      nomen, version: existing.length+1, listo:false, fechaLimite: fechaLimiteHook };
     mxaSetHooks(mxaDetConceptoId, mxaDetNivel, [...existing, nuevoHook]);
     // Auto-crear tarea pendiente si hay alguien asignado
     if(asignado) {
@@ -5495,7 +5567,7 @@ function mxaGuardarHook() {
         id: uid(),
         titulo: `🪝 Producir hook "${hook.substring(0,50)}${hook.length>50?'…':''}"`,
         desc: `Formato: ${fmt} · Nivel: ${mxaDetNivel} · Perfil: ${c.perfil} · Deseo: ${c.deseo}\nNomenclatura: ${nomen}`,
-        asignado, fechaInicio: new Date().toISOString().slice(0,10), fecha: '',
+        asignado, fechaInicio: new Date().toISOString().slice(0,10), fecha: fechaLimiteHook || '',
         prioridad: 'media', estado: 'pendiente',
         creadoPor: currentUser?.nombre||'Admin', creada: new Date().toISOString(),
         tipo: 'hook', hookId: nuevoHook.id
@@ -5510,12 +5582,12 @@ function mxaGuardarHook() {
         cl.produccion[tipoProd].push({
           id: uid(), titulo, copy: hook,
           notas: `Perfil: ${c.perfil} · Deseo: ${c.deseo} · Nivel: ${mxaDetNivel}`,
-          paso: 0, asignados: [asignado], fechaLimite: null,
+          paso: 0, asignados: [asignado], fechaLimite: fechaLimiteHook,
           fecha: new Date().toISOString().slice(0,10),
           nomenHook: nomen, hookId: nuevoHook.id
         });
       }
-      addNotif(`🪝 Hook asignado a ${nomAsig} · "${hook.substring(0,40)}"`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
+      addNotif(`🪝 Hook asignado a ${nomAsig} · "${hook.substring(0,40)}"${fechaLimiteHook?' · Vence: '+fechaLimiteHook:''}`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
     }
   }
   save(); cerrarModal('m-mxa-hook'); renderMatrizAds();
