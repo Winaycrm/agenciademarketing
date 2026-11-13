@@ -2592,7 +2592,7 @@ function abrirMpEnAds(temaId) {
     USUARIOS.filter(u=>u.user!=='Winay').map(u=>`<option value="${u.user}">${u.nombre}</option>`).join('');
   abrirModal('m-mp-en-ads');
 }
-function mpGuardarEnAds() {
+async function mpGuardarEnAds() {
   const temaId = _mpAdsId;
   const fmt = document.getElementById('mpads-formato').value;
   const asignado = document.getElementById('mpads-asignado').value;
@@ -2640,8 +2640,13 @@ function mpGuardarEnAds() {
 
   // Notificación al asignado
   addNotif(`📢 Video asignado a ${nomAsig} · ${cl.nombre} · "${t.tema.substring(0,40)}"`, 'asignacion', [asignado], `cliente:${cl.id}:produccion`);
-  save(); cerrarModal('m-mp-en-ads');
-  mostrarEstado(`✅ "${t.tema.substring(0,30)}" asignado a ${nomAsig} en ${tipoProd==='video'?'Videos':'Flyers'}`);
+  cerrarModal('m-mp-en-ads');
+  await save();
+  mostrarEstado(`✅ "${t.tema.substring(0,30)}" asignado a ${nomAsig} — Producción > ${tipoProd==='video'?'Videos':'Flyers'}`);
+  // Navegar al kanban para confirmar visualmente
+  document.querySelectorAll('#t-produccion .tabs .tab').forEach(tb=>tb.classList.remove('active'));
+  const tabEl = document.querySelector(`#t-produccion .tabs .tab[onclick*="${tipoProd}"]`);
+  if(tabEl) { tabEl.classList.add('active'); produccionTab(tipoProd, tabEl); }
 }
 
 // ===== SUB-TABS NOTAS/TAREAS =====
