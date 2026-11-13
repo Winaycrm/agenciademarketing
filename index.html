@@ -728,12 +728,7 @@ textarea { resize: vertical; }
         <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">Registra el tema, revisa la cantidad de me gustas y el volumen de búsquedas, y decide si lo grabas o no.</div>
         <div id="mp-temas-list"></div>
       </div>
-      <!-- PRODUCCIÓN MARCA PERSONA -->
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-        <h2>🎬 En Producción</h2>
-        <button class="btn btn-primary btn-sm" onclick="abrirNuevaPieza('marcaPersona')">+ Agregar a Producción</button>
-      </div>
-      <div id="kanban-marcaPersona"></div>
+      <!-- Producción de Marca Persona ahora va al kanban de Videos -->
     </div>
     <div id="prod-impresion" style="display:none;">
       <div class="row" style="margin-bottom:16px;"><button class="btn btn-primary" onclick="abrirNuevaPieza('impresion')">+ Nueva Impresión</button></div>
@@ -2373,12 +2368,12 @@ function tabProd(tipo, el) {
   ['flyer','video','marcaPersona','impresion'].forEach(t => {
     document.getElementById('prod-'+t).style.display = t === tipo ? 'block' : 'none';
   });
-  if(tipo === 'marcaPersona') { renderMarcaPersonaTemas(); renderKanban('marcaPersona'); }
+  if(tipo === 'marcaPersona') { renderMarcaPersonaTemas(); }
   else renderKanban(tipo);
 }
 
 function renderProduccion() {
-  if(prodTabActivo === 'marcaPersona') { renderMarcaPersonaTemas(); renderKanban('marcaPersona'); }
+  if(prodTabActivo === 'marcaPersona') { renderMarcaPersonaTemas(); }
   else renderKanban(prodTabActivo);
 }
 
@@ -2963,7 +2958,12 @@ function diasTranscurridos(fechaISO) {
 function renderKanban(tipo) {
   const c = document.getElementById('kanban-'+tipo);
   if(!c) return;
-  const piezas = (cl.produccion && cl.produccion[tipo]) || [];
+  // Para Videos: incluir también piezas de marcaPersona (datos migrados del flujo anterior)
+  let piezas = (cl.produccion && cl.produccion[tipo]) || [];
+  if(tipo === 'video') {
+    const mp = (cl.produccion && cl.produccion.marcaPersona) || [];
+    if(mp.length) piezas = [...piezas, ...mp];
+  }
   const { pasos, dias: limite } = FLUJOS[tipo];
 
   // Agrupar piezas por paso actual
@@ -4841,7 +4841,7 @@ function renderPendientes() {
       </div>`;
     };
 
-    return `<div style="margin-bottom:20px;">
+    return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:14px;padding:16px 18px;box-shadow:0 2px 8px rgba(0,0,0,.05);">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;cursor:pointer;" onclick="abrirCliente('${cl2.id}')">
         <span style="font-size:15px;font-weight:800;">📁 ${cl2.nombre}</span>
         ${pendTotal?`<span style="background:var(--accent);color:#fff;font-size:11px;padding:2px 9px;border-radius:20px;">${pendTotal} pendiente${pendTotal!==1?'s':''}</span>`:''}
@@ -4857,7 +4857,6 @@ function renderPendientes() {
           ${pPend.map(cardPieza).join('')}
         </div>` : ''}
       </div>
-      <div style="height:1px;background:var(--border);margin-top:16px;"></div>
     </div>`;
   };
 
@@ -4867,7 +4866,9 @@ function renderPendientes() {
       ${totalTareas?`<span style="background:#ede9ff;color:var(--accent);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">📋 ${totalTareas} tarea${totalTareas!==1?'s':''}</span>`:''}
       ${totalPiezas?`<span style="background:#ede9ff;color:var(--accent);font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;">🎬 ${totalPiezas} pieza${totalPiezas!==1?'s':''}</span>`:''}
     </div>
-    ${bloques.map(seccion).join('')}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;align-items:start;">
+      ${bloques.map(seccion).join('')}
+    </div>
   `;
 }
 
