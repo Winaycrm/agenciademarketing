@@ -413,6 +413,7 @@ textarea { resize: vertical; }
     <button class="main-tab" onclick="mainTab('asistencia',this)">⏰ Asistencia</button>
     <button class="main-tab" id="tab-mis-pendientes" onclick="mainTab('pendientes',this)" style="display:none;">📌 Mis Pendientes</button>
     <button class="main-tab" id="tab-calendario" onclick="mainTab('calendario',this)" style="display:none;">📅 Calendario</button>
+    <button class="main-tab empresa-only" id="tab-calgeneral" onclick="mainTab('calgeneral',this)">📅 Cal. General</button>
   </div>
 
   <!-- CLIENTES -->
@@ -437,6 +438,53 @@ textarea { resize: vertical; }
   <!-- MIS PENDIENTES -->
   <div id="main-pendientes" style="display:none;">
     <div id="pendientes-content"></div>
+  </div>
+
+  <!-- CALENDARIO GENERAL (todos los clientes) -->
+  <div id="main-calgeneral" style="display:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:16px;font-weight:800;">📅 Calendario General</div>
+        <div style="font-size:12px;color:var(--muted);">Todos los eventos de todos los clientes + días bloqueados del equipo.</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button class="btn btn-ghost btn-sm" onclick="calGenAnterior()">‹ Anterior</button>
+        <div id="calgen-titulo" style="font-size:15px;font-weight:800;min-width:160px;text-align:center;"></div>
+        <button class="btn btn-ghost btn-sm" onclick="calGenSiguiente()">Siguiente ›</button>
+      </div>
+    </div>
+
+    <!-- Filtro por persona -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
+      <span style="font-size:12px;font-weight:700;color:var(--muted);">Filtrar por persona:</span>
+      <select id="calgen-filtro-persona" onchange="renderCalGen()" style="font-size:12px;padding:4px 8px;border:1.5px solid var(--border);border-radius:8px;background:#fff;color:var(--text);">
+        <option value="">— Todos —</option>
+        <option value="Enrique">Enrique</option>
+        <option value="Andrea Ponce">Andrea</option>
+        <option value="Camila">Camila</option>
+        <option value="Diana">Diana</option>
+        <option value="Franklin">Franklin</option>
+        <option value="Alejandro">Alejandro</option>
+      </select>
+    </div>
+
+    <!-- Grid -->
+    <div class="cal-grid">
+      <div class="cal-weekdays">
+        <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div>
+        <div>Vie</div><div>Sáb</div><div>Dom</div>
+      </div>
+      <div class="cal-days" id="calgen-days"></div>
+    </div>
+
+    <!-- Detalle día -->
+    <div id="calgen-dia-detalle" style="display:none;margin-top:12px;"></div>
+
+    <!-- Lista del mes -->
+    <div style="margin-top:20px;">
+      <div style="font-size:13px;font-weight:700;color:var(--muted);letter-spacing:.5px;margin-bottom:8px;">TODOS LOS EVENTOS DEL MES</div>
+      <div id="calgen-list"></div>
+    </div>
   </div>
 
   <!-- CALENDARIO -->
@@ -1130,6 +1178,10 @@ textarea { resize: vertical; }
         <button id="btn-mp-grabar" class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('grabar')">✅ Grabar</button>
         <button id="btn-mp-no"     class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('no_grabar')">🎬 Grabado</button>
         <button id="btn-mp-pend"   class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('pendiente')">🤔 Pendiente</button>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;">
+        <button id="btn-mp-pub"    class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('publicado')">📢 Publicado</button>
+        <button id="btn-mp-viral"  class="btn btn-ghost" style="flex:1;" onclick="setDecisionMP('viral')">🚀 Viral</button>
       </div>
     </div>
     <div class="fg"><label>Links de referencia</label>
@@ -2336,10 +2388,16 @@ let mpEditId = null;
 
 function setDecisionMP(d) {
   mpDecision = d;
-  ['grabar','no_grabar','pendiente'].forEach(v => {
-    const btn = document.getElementById('btn-mp-'+{grabar:'grabar',no_grabar:'no',pendiente:'pend'}[v]);
-    if(btn) btn.style.background = v===d ? (d==='grabar'?'#dcfce7':d==='no_grabar'?'#fef2f2':'#fef3c7') : '';
-    if(btn) btn.style.fontWeight = v===d ? '800' : '';
+  const mapIds = {grabar:'grabar', no_grabar:'no', pendiente:'pend', publicado:'pub', viral:'viral'};
+  const colores = {grabar:'#dcfce7', no_grabar:'#dbeafe', pendiente:'#fef3c7', publicado:'#f0fdf4', viral:'#fdf4ff'};
+  const textos = {grabar:'#16a34a', no_grabar:'#1d4ed8', pendiente:'#92400e', publicado:'#15803d', viral:'#9333ea'};
+  ['grabar','no_grabar','pendiente','publicado','viral'].forEach(v => {
+    const btn = document.getElementById('btn-mp-'+mapIds[v]);
+    if(!btn) return;
+    btn.style.background = v===d ? colores[v] : '';
+    btn.style.color = v===d ? textos[v] : '';
+    btn.style.fontWeight = v===d ? '800' : '';
+    btn.style.borderColor = v===d ? textos[v] : '';
   });
 }
 
@@ -2420,13 +2478,13 @@ function pasarAProduccionMP(id) {
   const t = cl.marcaPersona.temas.find(t => t.id === id);
   if(!t) return;
   if(!cl.produccion) cl.produccion = {};
-  if(!cl.produccion.marcaPersona) cl.produccion.marcaPersona = [];
+  if(!cl.produccion.video) cl.produccion.video = [];
   // Evitar duplicados
-  const yaExiste = cl.produccion.marcaPersona.some(p => p.titulo === t.tema);
+  const yaExiste = cl.produccion.video.some(p => p.titulo === t.tema);
   if(yaExiste) { alert(`"${t.tema}" ya está en producción.`); return; }
-  cl.produccion.marcaPersona.push({ id:uid(), titulo:t.tema, copy:'', notas:t.notas||'', paso:0, asignados:[], fechaLimite:null, fecha:new Date().toISOString().slice(0,10) });
+  cl.produccion.video.push({ id:uid(), titulo:t.tema, copy:'', notas:t.notas||'', paso:0, asignados:[], fechaLimite:null, fecha:new Date().toISOString().slice(0,10), desdeMarcaPersona:true });
   addNotif(`🎬 Nuevo en producción · Cliente: ${cl.nombre} · Marca Persona: "${t.tema}"`, 'nuevo', 'todos', `cliente:${cl.id}:produccion`);
-  save(); renderMarcaPersonaTemas(); renderKanban('marcaPersona');
+  save(); renderMarcaPersonaTemas(); renderKanban('video');
 }
 
 function renderMarcaPersonaTemas() {
@@ -2434,7 +2492,7 @@ function renderMarcaPersonaTemas() {
   if(!c) return;
   const temas = (cl.marcaPersona && cl.marcaPersona.temas) || [];
   if(!temas.length) { c.innerHTML = '<div class="empty">Sin temas. Agrega el primero.</div>'; return; }
-  const DECS = { grabar:{ cls:'asist-ok', ico:'✅', lbl:'Grabar' }, no_grabar:{ cls:'asist-ok', ico:'🎬', lbl:'Grabado' }, pendiente:{ cls:'asist-warn', ico:'🤔', lbl:'Pendiente' } };
+  const DECS = { grabar:{ cls:'asist-ok', ico:'✅', lbl:'Grabar' }, no_grabar:{ cls:'asist-ok', ico:'🎬', lbl:'Grabado' }, pendiente:{ cls:'asist-warn', ico:'🤔', lbl:'Pendiente' }, publicado:{ cls:'asist-ok', ico:'📢', lbl:'Publicado' }, viral:{ cls:'asist-ok', ico:'🚀', lbl:'Viral' } };
   c.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:13px;">
     <thead><tr style="background:var(--card2);">
       <th style="padding:10px;text-align:left;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.4px;">Tema</th>
@@ -2449,10 +2507,11 @@ function renderMarcaPersonaTemas() {
         <td style="padding:10px;font-weight:600;">${t.tema}${t.notas?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${t.notas}</div>`:''}${(t.links&&t.links.length)?`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;">${t.links.map((l,i)=>`<a href="${l}" target="_blank" style="font-size:11px;color:#6c47ff;background:#f0ecff;border-radius:6px;padding:2px 8px;text-decoration:none;">🔗 Link ${i+1}</a>`).join('')}</div>`:''}</td>
         <td style="padding:10px;text-align:center;font-weight:700;color:#e11d48;">${t.volumenTiktok||'—'}</td>
         <td style="padding:10px;text-align:center;font-weight:700;color:var(--accent);">${t.volumenBusquedas||'—'}</td>
-        <td style="padding:10px;text-align:center;"><span class="asist-badge ${d.cls}">${d.ico} ${d.lbl}</span></td>
+        <td style="padding:10px;text-align:center;"><span class="asist-badge ${d.cls}" style="${t.decision==='viral'?'background:#fdf4ff;color:#9333ea;border-color:#d8b4fe;':t.decision==='publicado'?'background:#f0fdf4;color:#15803d;border-color:#86efac;':''}">${d.ico} ${d.lbl}</span></td>
         <td style="padding:10px;text-align:center;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" onclick="editarTema('${t.id}')">✏️</button>
           ${t.decision==='grabar'?`<button class="btn btn-primary btn-sm" onclick="pasarAProduccionMP('${t.id}')">▶ Producir</button>`:''}
+          ${t.decision==='viral'?`<button class="btn btn-sm" style="background:#fdf4ff;color:#9333ea;border:1.5px solid #d8b4fe;cursor:pointer;border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;" onclick="nuevaVariacion('${t.id}')">🔄 Nueva Variación</button>`:''}
           <button class="btn btn-sm" style="background:#ede9ff;color:#6c47ff;border:none;cursor:pointer;border-radius:8px;padding:4px 8px;font-size:11px;font-weight:700;" onclick="abrirMpEnAds('${t.id}')">📢 Ads</button>
           <button class="btn btn-danger btn-sm" onclick="eliminarTema('${t.id}')">✕</button>
         </td>
@@ -2461,11 +2520,25 @@ function renderMarcaPersonaTemas() {
   </table>`;
 }
 
+function nuevaVariacion(id) {
+  const t = cl.marcaPersona.temas.find(t => t.id === id);
+  if(!t) return;
+  mpEditId = null; mpDecision = 'pendiente'; mpLinks = [];
+  document.getElementById('mp-tema').value = t.tema + ' (variación)';
+  document.getElementById('mp-volumen').value = t.volumenTiktok || '';
+  document.getElementById('mp-busquedas').value = t.volumenBusquedas || '';
+  document.getElementById('mp-notas').value = 'Variación del video viral: ' + t.tema;
+  document.getElementById('mp-link-input').value = '';
+  renderLinksTema();
+  setDecisionMP('pendiente');
+  abrirModal('m-tema');
+}
+
 // ===== MARCA PERSONA CSV DOWNLOAD =====
 function descargarMarcaPersonaCSV() {
   const temas = (cl.marcaPersona && cl.marcaPersona.temas) || [];
   if(!temas.length) { alert('No hay temas para descargar'); return; }
-  const DECS = { grabar:'Grabar', no_grabar:'Grabado', pendiente:'Pendiente' };
+  const DECS = { grabar:'Grabar', no_grabar:'Grabado', pendiente:'Pendiente', publicado:'Publicado', viral:'Viral' };
   const filas = [
     ['Tema', 'Notas', 'Me Gustas', 'Vol. Búsquedas', 'Decisión', 'Links']
   ];
@@ -3426,6 +3499,172 @@ function eliminarEvento(id) {
   save(); renderCalendarioCliente();
 }
 
+// ===== CALENDARIO GENERAL =====
+let calGenMes = new Date().getMonth();
+let calGenAnio = new Date().getFullYear();
+let calGenDia = null;
+
+// Paleta de colores por cliente (asigna automáticamente)
+const CAL_GEN_PALETA = ['#7c3aed','#2563eb','#16a34a','#dc2626','#d97706','#0891b2','#db2777','#9333ea','#059669','#c2410c'];
+function calGenColorCliente(nombre) {
+  if(!calGenColorCliente._cache) calGenColorCliente._cache = {};
+  if(!calGenColorCliente._cache[nombre]) {
+    const idx = Object.keys(calGenColorCliente._cache).length % CAL_GEN_PALETA.length;
+    calGenColorCliente._cache[nombre] = CAL_GEN_PALETA[idx];
+  }
+  return calGenColorCliente._cache[nombre];
+}
+
+function calGenAnterior() { calGenMes--; if(calGenMes<0){calGenMes=11;calGenAnio--;} calGenDia=null; renderCalGen(); }
+function calGenSiguiente(){ calGenMes++; if(calGenMes>11){calGenMes=0;calGenAnio++;} calGenDia=null; renderCalGen(); }
+
+function calGenObtenerEventos() {
+  if(!db) return [];
+  const filtro = document.getElementById('calgen-filtro-persona')?.value || '';
+  const evs = [];
+
+  (db.clientes||[]).forEach(c => {
+    const color = calGenColorCliente(c.nombre);
+    // Eventos manuales
+    (c.eventos||[]).forEach(e => {
+      if(filtro && !(e.personas||[]).includes(filtro)) return;
+      evs.push({ ...e, _cliente:c.nombre, _color:color, _tipo:'evento' });
+    });
+    // Producción con fechaLimite
+    const prod = c.produccion || {};
+    ['marcaPersona','video','flyer','impresion'].forEach(tipo => {
+      (prod[tipo]||[]).forEach(p => {
+        if(!p.fechaLimite) return;
+        if(filtro && !(p.asignados||[]).includes(filtro)) return;
+        const icon = tipo==='video'?'🎥':tipo==='marcaPersona'?'🎬':tipo==='flyer'?'🖼️':'🖨️';
+        evs.push({ id:'prod_'+p.id, nombre:`${icon} ${p.titulo}`, fecha:p.fechaLimite,
+          hora:'', tipo:'grabacion', notas:p.notas||'', personas:p.asignados||[],
+          _cliente:c.nombre, _color:color, _tipo:'produccion' });
+      });
+    });
+  });
+
+  // Días bloqueados de Alejandro
+  if(!filtro || filtro==='Alejandro') {
+    ((db.bloqueados||{})['Alejandro']||[]).forEach(b => {
+      evs.push({ id:b.id, nombre:'🚫 Alejandro bloqueado', fecha:b.fecha, hora:'',
+        tipo:'bloqueado', notas:b.notas||'', personas:['Alejandro'],
+        _cliente:'Equipo', _color:'#ef4444', _tipo:'bloqueado' });
+    });
+  }
+  return evs;
+}
+
+function renderCalGen() {
+  if(!db) return;
+  const eventos = calGenObtenerEventos();
+  const hoyStr = new Date().toISOString().slice(0,10);
+  const mes = calGenMes; const anio = calGenAnio;
+
+  const nomMes = new Date(anio,mes,1).toLocaleString('es',{month:'long',year:'numeric'});
+  document.getElementById('calgen-titulo').textContent = nomMes.charAt(0).toUpperCase()+nomMes.slice(1);
+
+  const primerDia = new Date(anio,mes,1);
+  let inicioGrid = primerDia.getDay();
+  inicioGrid = (inicioGrid===0)?6:inicioGrid-1;
+  const diasEnMes = new Date(anio,mes+1,0).getDate();
+  const diasMesAnterior = new Date(anio,mes,0).getDate();
+
+  const evPorFecha = {};
+  eventos.forEach(e => {
+    if(!evPorFecha[e.fecha]) evPorFecha[e.fecha]=[];
+    evPorFecha[e.fecha].push(e);
+  });
+
+  let celdas = '';
+  const totalCeldas = Math.ceil((inicioGrid+diasEnMes)/7)*7;
+  for(let i=0;i<totalCeldas;i++){
+    let diaN,fechaStr,esOtroMes=false;
+    if(i<inicioGrid){
+      diaN=diasMesAnterior-inicioGrid+1+i;
+      const m=mes===0?12:mes; const a=mes===0?anio-1:anio;
+      fechaStr=`${a}-${String(m).padStart(2,'0')}-${String(diaN).padStart(2,'0')}`;
+      esOtroMes=true;
+    } else if(i<inicioGrid+diasEnMes){
+      diaN=i-inicioGrid+1;
+      fechaStr=`${anio}-${String(mes+1).padStart(2,'0')}-${String(diaN).padStart(2,'0')}`;
+    } else {
+      diaN=i-inicioGrid-diasEnMes+1;
+      const m=mes===11?1:mes+2; const a=mes===11?anio+1:anio;
+      fechaStr=`${a}-${String(m).padStart(2,'0')}-${String(diaN).padStart(2,'0')}`;
+      esOtroMes=true;
+    }
+    const esHoy=fechaStr===hoyStr;
+    const esSeleccionado=fechaStr===calGenDia;
+    const evs=evPorFecha[fechaStr]||[];
+    const dots=evs.map(e=>`<span class="cal-dot" style="background:${e._color||'#7c3aed'};" title="${e.nombre} · ${e._cliente}"></span>`).join('');
+    const previews=evs.slice(0,2).map(e=>`<div style="font-size:9px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:${e._color};">${e.nombre}</div>`).join('');
+    const cls=['cal-day',esOtroMes?'other-month':'',esHoy?'hoy':'',esSeleccionado?'selected':''].filter(Boolean).join(' ');
+    celdas+=`<div class="${cls}" onclick="calGenSelDia('${fechaStr}')">
+      <div class="cal-day-num">${diaN}</div>
+      <div class="cal-dots">${dots}</div>
+      ${previews}
+    </div>`;
+  }
+  document.getElementById('calgen-days').innerHTML=celdas;
+
+  // Detalle día
+  const det=document.getElementById('calgen-dia-detalle');
+  if(calGenDia){
+    const dEvs=evPorFecha[calGenDia]||[];
+    const fechaD=new Date(calGenDia+'T12:00:00');
+    const lblFecha=fechaD.toLocaleDateString('es',{weekday:'long',day:'numeric',month:'long'});
+    det.style.display='block';
+    det.innerHTML=`<div class="cal-selected-evs"><h3>📅 ${lblFecha.charAt(0).toUpperCase()+lblFecha.slice(1)}</h3>`+
+      (dEvs.length ? dEvs.map(e=>`<div class="evento-card" style="margin-bottom:8px;border-left:3px solid ${e._color};">
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;">${esc(e.nombre)}${e.hora?` 🕐 ${e.hora}`:''}</div>
+          <div style="font-size:11px;color:${e._color};font-weight:700;">📋 ${e._cliente}</div>
+          ${(e.personas&&e.personas.length)?`<div style="font-size:11px;color:var(--muted);">👥 ${e.personas.join(', ')}</div>`:''}
+          ${e.notas?`<div style="font-size:12px;color:var(--muted);">${esc(e.notas)}</div>`:''}
+        </div>
+      </div>`).join('') : `<div style="font-size:13px;color:var(--muted);">Sin eventos este día.</div>`)+
+      `</div>`;
+  } else { det.style.display='none'; }
+
+  // Lista del mes
+  const delMes=eventos.filter(e=>{
+    const[ay,am]=e.fecha.split('-').map(Number);
+    return ay===anio&&am===mes+1;
+  }).sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  const listEl=document.getElementById('calgen-list');
+  if(!delMes.length){
+    listEl.innerHTML='<div style="font-size:13px;color:var(--muted);text-align:center;padding:20px 0;">Sin eventos este mes.</div>';
+  } else {
+    listEl.innerHTML=delMes.map(e=>{
+      const dia=new Date(e.fecha+'T12:00:00').getDate();
+      const mon=new Date(e.fecha+'T12:00:00').toLocaleString('es',{month:'short'}).toUpperCase();
+      const diasFaltan=Math.ceil((new Date(e.fecha+'T12:00:00')-new Date())/86400000);
+      const faltan=diasFaltan>0?`en ${diasFaltan} días`:diasFaltan===0?'🔴 ¡Hoy!':`hace ${-diasFaltan} días`;
+      return `<div class="evento-card" style="cursor:pointer;margin-bottom:8px;border-left:3px solid ${e._color};" onclick="calGenSelDia('${e.fecha}')">
+        <div style="text-align:center;min-width:44px;">
+          <div style="font-size:22px;font-weight:800;color:${e._color};line-height:1;">${dia}</div>
+          <div style="font-size:10px;color:var(--muted);font-weight:700;">${mon}</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;">${esc(e.nombre)}${e.hora?` 🕐 ${e.hora}`:''}</div>
+          <div style="font-size:11px;color:${e._color};font-weight:700;">📋 ${esc(e._cliente)}</div>
+          <div style="font-size:12px;color:var(--muted);">${faltan}</div>
+          ${(e.personas&&e.personas.length)?`<div style="font-size:11px;color:var(--muted);">👥 ${e.personas.join(', ')}</div>`:''}
+          ${e.notas?`<div style="font-size:11px;color:#9ca3af;">${esc(e.notas)}</div>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function calGenSelDia(fechaStr){
+  calGenDia=(calGenDia===fechaStr)?null:fechaStr;
+  const[ay,am]=fechaStr.split('-').map(Number);
+  calGenAnio=ay; calGenMes=am-1;
+  renderCalGen();
+}
+
 // ===== GUÍA DE DESEOS (Matriz Ads) =====
 let gdEditId = null;
 
@@ -4285,15 +4524,17 @@ function renderDashboard() {
 function mainTab(tab, el) {
   document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  document.getElementById('main-clientes').style.display   = tab==='clientes'   ? '' : 'none';
-  document.getElementById('main-dashboard').style.display  = tab==='dashboard'  ? '' : 'none';
-  document.getElementById('main-asistencia').style.display = tab==='asistencia' ? '' : 'none';
-  document.getElementById('main-pendientes').style.display = tab==='pendientes' ? '' : 'none';
-  document.getElementById('main-calendario').style.display = tab==='calendario' ? '' : 'none';
+  document.getElementById('main-clientes').style.display    = tab==='clientes'    ? '' : 'none';
+  document.getElementById('main-dashboard').style.display   = tab==='dashboard'   ? '' : 'none';
+  document.getElementById('main-asistencia').style.display  = tab==='asistencia'  ? '' : 'none';
+  document.getElementById('main-pendientes').style.display  = tab==='pendientes'  ? '' : 'none';
+  document.getElementById('main-calendario').style.display  = tab==='calendario'  ? '' : 'none';
+  document.getElementById('main-calgeneral').style.display  = tab==='calgeneral'  ? '' : 'none';
   if(tab === 'asistencia') renderAsistencia();
   else if(tab === 'dashboard') renderDashboard();
   else if(tab === 'pendientes') renderPendientes();
   else if(tab === 'calendario') renderCalendario();
+  else if(tab === 'calgeneral') { calGenMes=new Date().getMonth(); calGenAnio=new Date().getFullYear(); calGenDia=null; renderCalGen(); }
   else { clearInterval(_relojInterval); _relojInterval = null; }
 }
 
@@ -4545,7 +4786,7 @@ function renderPendientes() {
     });
 
     return { cl2, tareas, piezas };
-  }).filter(b => b.tareas.length || b.piezas.length);
+  }).filter(b => b.tareas.filter(t=>t.estado!=='completada').length || b.piezas.filter(p=>!p._esFinal).length);
 
   if(!bloques.length) {
     c.innerHTML = `<div style="text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;">🎉 No tienes pendientes asignados</div>`;
@@ -4558,11 +4799,9 @@ function renderPendientes() {
 
   const seccion = ({ cl2, tareas, piezas }) => {
     const tPend = tareas.filter(t => t.estado !== 'completada');
-    const tDone = tareas.filter(t => t.estado === 'completada');
     const pPend = piezas.filter(p => !p._esFinal);
-    const pDone = piezas.filter(p => p._esFinal);
     const pendTotal = tPend.length + pPend.length;
-    if(!pendTotal && !tDone.length && !pDone.length) return '';
+    if(!pendTotal) return ''; // Solo mostrar clientes con pendientes activos
 
     const cardTarea = t => {
       const vencida = t.fecha && new Date(t.fecha+' 00:00:00') < hoyD && t.estado !== 'completada';
@@ -4608,16 +4847,14 @@ function renderPendientes() {
         ${pendTotal?`<span style="background:var(--accent);color:#fff;font-size:11px;padding:2px 9px;border-radius:20px;">${pendTotal} pendiente${pendTotal!==1?'s':''}</span>`:''}
         <span style="font-size:11px;color:var(--accent);">→ Abrir cliente</span>
       </div>
-      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
-        ${tPend.length||tDone.length ? `<div style="flex:1;min-width:240px;">
+      <div style="display:flex;flex-direction:column;gap:0;">
+        ${tPend.length ? `<div style="margin-bottom:8px;">
           <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">📋 Tareas</div>
           ${tPend.map(cardTarea).join('')}
-          ${tDone.length?`<div style="font-size:10px;color:var(--muted);font-weight:700;margin:8px 0 6px;text-transform:uppercase;">Completadas (${tDone.length})</div>${tDone.map(cardTarea).join('')}`:''}
         </div>` : ''}
-        ${pPend.length||pDone.length ? `<div style="flex:1;min-width:240px;">
+        ${pPend.length ? `<div>
           <div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">🎬 Producción</div>
           ${pPend.map(cardPieza).join('')}
-          ${pDone.length?`<div style="font-size:10px;color:var(--muted);font-weight:700;margin:8px 0 6px;text-transform:uppercase;">Publicadas (${pDone.length})</div>${pDone.map(cardPieza).join('')}`:''}
         </div>` : ''}
       </div>
       <div style="height:1px;background:var(--border);margin-top:16px;"></div>
