@@ -386,6 +386,7 @@ textarea { resize: vertical; }
       <div class="muted" style="margin-top:4px;">Selecciona un cliente</div>
     </div>
     <div class="row" style="gap:8px;">
+      <button class="btn btn-ghost btn-sm empresa-only" onclick="limpiarTodosTrabajosTest()" style="color:#dc2626;border-color:#fca5a5;">🗑 Limpiar tareas</button>
       <button class="btn btn-ghost btn-sm" onclick="exportData()">⬇️ Exportar</button>
       <label class="btn btn-ghost btn-sm" style="cursor:pointer;">⬆️ Importar<input type="file" accept=".json" style="display:none" onchange="importData(event)"></label>
       <!-- NOTIF BELL -->
@@ -4094,6 +4095,31 @@ function doLogin() {
   }
 }
 
+async function limpiarTodosTrabajosTest() {
+  if(!confirm('⚠️ Esto borrará TODAS las tareas y piezas de producción de TODOS los clientes.\n\nNotas, Matriz Ads y Marca Persona NO se tocan.\n\n¿Estás seguro?')) return;
+  if(!confirm('Segunda confirmación: ¿Borrar todo? Esta acción no se puede deshacer.')) return;
+
+  let totalTareas = 0, totalPiezas = 0;
+  (db.clientes || []).forEach(c => {
+    totalTareas += (c.tareas || []).length;
+    ['flyer','video','impresion','marcaPersona'].forEach(tipo => {
+      totalPiezas += ((c.produccion || {})[tipo] || []).length;
+    });
+    c.tareas = [];
+    c.produccion = { flyer:[], video:[], impresion:[], marcaPersona:[] };
+  });
+
+  // Guardar todos los clientes
+  const batch = fsdb.batch();
+  (db.clientes || []).forEach(c => {
+    batch.set(fsdb.collection('clientes').doc(c.id), c);
+  });
+  await batch.commit();
+
+  mostrarEstado(`✅ Limpieza completa — ${totalTareas} tareas y ${totalPiezas} piezas eliminadas`);
+  renderClientes();
+}
+
 function logout() {
   currentUser = null;
   sessionStorage.removeItem('currentUser');
@@ -5593,11 +5619,24 @@ function mxaGuardarHook() {
   save(); cerrarModal('m-mxa-hook'); renderMatrizAds();
 }
 function mxaEliminarHook(hId) {
-  if(!confirm('¿Eliminar este hook?')) return;
+  if(!confirm('¿Eliminar este hook? También se eliminará su tarea y pieza de producción asignada.')) return;
   if(!cl.mxHooks) return;
+  // 1. Borrar el hook de mxHooks
   for(const key in cl.mxHooks) {
     const idx = cl.mxHooks[key].findIndex(h=>h.id===hId);
     if(idx>=0){ cl.mxHooks[key].splice(idx,1); break; }
+  }
+  // 2. Borrar tareas vinculadas a este hook
+  if(cl.tareas) {
+    cl.tareas = cl.tareas.filter(t => t.hookId !== hId);
+  }
+  // 3. Borrar piezas de producción vinculadas a este hook
+  if(cl.produccion) {
+    ['flyer','video','impresion','marcaPersona'].forEach(tipo => {
+      if(cl.produccion[tipo]) {
+        cl.produccion[tipo] = cl.produccion[tipo].filter(p => p.hookId !== hId);
+      }
+    });
   }
   save(); renderMatrizAds();
 }
