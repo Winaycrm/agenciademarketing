@@ -903,8 +903,8 @@ textarea { resize: vertical; }
 <!-- MODAL: USAR MARCA PERSONA EN ADS -->
 <div class="overlay" id="m-mp-en-ads">
   <div class="modal" style="width:480px;">
-    <h2>📢 Usar en Matriz Ads</h2>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">El tema de Marca Persona se agregará como hook en la celda que elijas.</p>
+    <h2>📢 Asignar a Producción</h2>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Asigna este tema a un trabajador. Aparecerá en su carpeta de Videos o Flyers.</p>
     <div style="background:#f0ecff;border-radius:10px;padding:12px 14px;margin-bottom:16px;">
       <div style="font-size:11px;font-weight:700;color:#7c3aed;text-transform:uppercase;margin-bottom:4px;">Tema seleccionado</div>
       <div id="mpads-tema-txt" style="font-weight:600;font-size:14px;"></div>
@@ -927,18 +927,32 @@ textarea { resize: vertical; }
       <select id="mpads-formato">
         <option value="video">🎥 Video</option>
         <option value="ugc">🤳 UGC</option>
+        <option value="carrusel">📱 Carrusel / Flyer</option>
         <option value="imagen">🖼️ Imagen estática</option>
-        <option value="carrusel">📱 Carrusel</option>
       </select>
     </div>
-    <div class="fg"><label>👤 Asignado a</label>
+    <div class="fg"><label>👤 Asignar a (obligatorio)</label>
       <select id="mpads-asignado">
-        <option value="">— Sin asignar —</option>
+        <option value="">— Selecciona trabajador —</option>
+      </select>
+    </div>
+    <div class="fg"><label>📊 Concepto Matriz Ads <span style="font-weight:400;color:var(--muted);">(opcional)</span></label>
+      <select id="mpads-concepto">
+        <option value="">— Sin vincular a Matriz Ads —</option>
+      </select>
+    </div>
+    <div class="fg" id="mpads-nivel-wrap"><label>Nivel de consciencia</label>
+      <select id="mpads-nivel">
+        <option value="N1">N1 — Inconsciente</option>
+        <option value="N2">N2 — Consciente del Problema</option>
+        <option value="N3">N3 — Consciente de la Solución</option>
+        <option value="N4">N4 — Consciente del Producto</option>
+        <option value="N5">N5 — Totalmente Consciente</option>
       </select>
     </div>
     <div class="fl">
       <button class="btn btn-ghost" onclick="cerrarModal('m-mp-en-ads')">Cancelar</button>
-      <button class="btn btn-primary" onclick="mpGuardarEnAds()">📢 Agregar como Hook</button>
+      <button class="btn btn-primary" onclick="mpGuardarEnAds()">📢 Asignar</button>
     </div>
   </div>
 </div>
@@ -2580,47 +2594,54 @@ function abrirMpEnAds(temaId) {
 }
 function mpGuardarEnAds() {
   const temaId = _mpAdsId;
-  const conceptoId = document.getElementById('mpads-concepto').value;
-  const nivel = document.getElementById('mpads-nivel').value;
   const fmt = document.getElementById('mpads-formato').value;
   const asignado = document.getElementById('mpads-asignado').value;
-  if(!conceptoId) { alert('Selecciona un concepto de Matriz Ads'); return; }
+  if(!asignado) { alert('Selecciona a quién asignar'); return; }
   const t = (cl.marcaPersona?.temas||[]).find(t=>t.id===temaId);
-  const c = (cl.mxConceptos||[]).find(c=>c.id===conceptoId);
-  if(!t||!c) return;
-  if(!cl.mxHooks) cl.mxHooks = {};
-  const existing = (cl.mxHooks[conceptoId+'_'+nivel])||[];
-  const nomen = mxaBuildNomen(c, nivel, fmt, existing.length+1);
-  const nuevoHook = { id:uid(), formato:fmt, hook:t.tema, estado:'pendiente', asignado,
-    nomen, version:existing.length+1, listo:false, desdeMarcaPersona:true };
-  cl.mxHooks[conceptoId+'_'+nivel] = [...existing, nuevoHook];
-  // Auto-tarea si asignado
-  if(asignado) {
-    if(!cl.tareas) cl.tareas = [];
-    const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
-    cl.tareas.push({ id:uid(), titulo:`🪝 Hook de Marca Persona: "${t.tema.substring(0,50)}"`,
-      desc:`Formato: ${fmt} · Nivel: ${nivel} · Perfil: ${c.perfil} · Deseo: ${c.deseo}\nNomenclatura: ${nomen}`,
-      asignado, fechaInicio:new Date().toISOString().slice(0,10), fecha:'',
-      prioridad:'media', estado:'pendiente', creadoPor:currentUser?.nombre||'Admin',
-      creada:new Date().toISOString(), tipo:'hook', hookId:nuevoHook.id });
-    // Auto-crear pieza en Producción según formato
-    const tipoProd2 = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
-    if(!cl.produccion) cl.produccion = {};
-    if(!cl.produccion[tipoProd2]) cl.produccion[tipoProd2] = [];
-    const yaExiste2 = cl.produccion[tipoProd2].some(p => p.nomenHook === nomen);
-    if(!yaExiste2) {
-      cl.produccion[tipoProd2].push({
-        id:uid(), titulo:`🪝 ${nomen}`, copy:t.tema,
-        notas:`Perfil: ${c.perfil} · Deseo: ${c.deseo} · Nivel: ${nivel}`,
-        paso:0, asignados:[asignado], fechaLimite:null,
-        fecha:new Date().toISOString().slice(0,10),
-        nomenHook:nomen, hookId:nuevoHook.id
-      });
+  if(!t) return;
+
+  const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
+  const tipoProd = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
+
+  // Siempre crear pieza en producción
+  if(!cl.produccion) cl.produccion = {};
+  if(!cl.produccion[tipoProd]) cl.produccion[tipoProd] = [];
+  const FMT_LBL = {video:'🎥 Video', ugc:'🤳 UGC', carrusel:'📱 Carrusel', imagen:'🖼️ Imagen'};
+  cl.produccion[tipoProd].push({
+    id:uid(), titulo:t.tema, copy:'',
+    notas:`${FMT_LBL[fmt]||fmt} · Desde Marca Persona`,
+    paso:0, asignados:[asignado], fechaLimite:null,
+    fecha:new Date().toISOString().slice(0,10),
+    desdeMarcaPersona:true
+  });
+
+  // Siempre crear tarea asignada
+  if(!cl.tareas) cl.tareas = [];
+  cl.tareas.push({ id:uid(), titulo:`🎬 ${t.tema}`,
+    desc:`Formato: ${FMT_LBL[fmt]||fmt}${t.notas?'\n'+t.notas:''}`,
+    asignado, fechaInicio:new Date().toISOString().slice(0,10), fecha:'',
+    prioridad:'media', estado:'pendiente', creadoPor:currentUser?.nombre||'Admin',
+    creada:new Date().toISOString() });
+
+  // Opcional: vincular a concepto de Matriz Ads si se seleccionó
+  const conceptoId = document.getElementById('mpads-concepto').value;
+  if(conceptoId) {
+    const nivel = document.getElementById('mpads-nivel').value;
+    const c = (cl.mxConceptos||[]).find(c=>c.id===conceptoId);
+    if(c) {
+      if(!cl.mxHooks) cl.mxHooks = {};
+      const existing = (cl.mxHooks[conceptoId+'_'+nivel])||[];
+      const nomen = mxaBuildNomen(c, nivel, fmt, existing.length+1);
+      const nuevoHook = { id:uid(), formato:fmt, hook:t.tema, estado:'pendiente', asignado,
+        nomen, version:existing.length+1, listo:false, desdeMarcaPersona:true };
+      cl.mxHooks[conceptoId+'_'+nivel] = [...existing, nuevoHook];
     }
-    addNotif(`📢 Hook de Marca Persona asignado a ${nomAsig} · "${t.tema.substring(0,40)}"`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
   }
+
+  // Notificación al asignado
+  addNotif(`📢 Video asignado a ${nomAsig} · ${cl.nombre} · "${t.tema.substring(0,40)}"`, 'asignacion', [asignado], `cliente:${cl.id}:produccion`);
   save(); cerrarModal('m-mp-en-ads');
-  mostrarEstado('✅ Tema agregado como hook en Matriz Ads');
+  mostrarEstado(`✅ "${t.tema.substring(0,30)}" asignado a ${nomAsig} en ${tipoProd==='video'?'Videos':'Flyers'}`);
 }
 
 // ===== SUB-TABS NOTAS/TAREAS =====
