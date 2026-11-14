@@ -455,6 +455,12 @@ textarea { resize: vertical; }
       </div>
     </div>
 
+    <!-- Leyenda -->
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:50%;background:#7c3aed;display:inline-block;"></span><b>Grabación</b></span>
+      <span style="font-size:12px;display:flex;align-items:center;gap:5px;"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;"></span><b>Reunión con cliente</b></span>
+    </div>
+
     <!-- Filtro por persona -->
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;align-items:center;">
       <span style="font-size:12px;font-weight:700;color:var(--muted);">Filtrar por persona:</span>
@@ -524,9 +530,7 @@ textarea { resize: vertical; }
       <label>Tipo</label>
       <select id="ev-tipo">
         <option value="grabacion">🎥 Grabación</option>
-        <option value="cita">🤝 Cita con cliente</option>
-        <option value="entrega">📦 Entrega</option>
-        <option value="otro">📌 Otro</option>
+        <option value="cita">🔴 Reunión con cliente</option>
       </select>
     </div>
     <div class="fg">
@@ -1324,14 +1328,7 @@ textarea { resize: vertical; }
       <label>Tipo</label>
       <select id="ev-tipo">
         <option value="grabacion">🎥 Grabación</option>
-        <option value="reunion">🤝 Reunión</option>
-        <option value="entrega">📦 Entrega</option>
-        <option value="llamada">📞 Llamada</option>
-        <option value="lanzamiento">🚀 Lanzamiento</option>
-        <option value="festivo">🎉 Día festivo</option>
-        <option value="promocion">💰 Promoción</option>
-        <option value="aniversario">🏢 Aniversario</option>
-        <option value="otro">📌 Otro</option>
+        <option value="cita">🔴 Reunión con cliente</option>
       </select>
     </div>
     <div class="fg">
@@ -3607,23 +3604,13 @@ function calGenObtenerEventos() {
 
   (db.clientes||[]).forEach(c => {
     const color = calGenColorCliente(c.nombre);
-    // Eventos manuales
+    // Solo grabaciones y reuniones con clientes
     (c.eventos||[]).forEach(e => {
+      if(e.tipo !== 'grabacion' && e.tipo !== 'cita' && e.tipo !== 'reunion') return; // solo grabaciones y reuniones
       if(filtro && !(e.personas||[]).includes(filtro)) return;
-      evs.push({ ...e, _cliente:c.nombre, _color:color, _tipo:'evento' });
-    });
-    // Producción con fechaLimite
-    const prod = c.produccion || {};
-    ['marcaPersona','video','flyer','impresion','paginaWeb'].forEach(tipo => {
-      (prod[tipo]||[]).forEach(p => {
-        if(!p.fechaLimite) return;
-        if(filtro && !(p.asignados||[]).includes(filtro)) return;
-        const iconMap = { video:'🎥', marcaPersona:'🎬', flyer:'🖼️', impresion:'🖨️', paginaWeb:'🌐' };
-        const icon = iconMap[tipo]||'📋';
-        evs.push({ id:'prod_'+p.id, nombre:`${icon} ${p.titulo}`, fecha:p.fechaLimite,
-          hora:'', tipo:'grabacion', notas:p.notas||'', personas:p.asignados||[],
-          _cliente:c.nombre, _color:color, _tipo:'produccion' });
-      });
+      const esReunion = e.tipo === 'cita' || e.tipo === 'reunion';
+      const colorEv = esReunion ? '#ef4444' : '#7c3aed'; // reuniones=rojo, grabaciones=morado
+      evs.push({ ...e, _cliente:c.nombre, _color:colorEv, _tipo:'evento' });
     });
   });
 
@@ -4183,9 +4170,9 @@ function actualizarUserChips() {
   // Mostrar "Mis Pendientes" solo para trabajadores y supervisores
   const tabPend = document.getElementById('tab-mis-pendientes');
   if(tabPend) tabPend.style.display = currentUser.rol !== 'empresa' ? '' : 'none';
-  // Calendario: solo empresa y Camila (supervisor)
+  // tab-calendario oculto siempre — se usa tab-calgeneral como calendario unificado
   const tabCal = document.getElementById('tab-calendario');
-  if(tabCal) tabCal.style.display = (currentUser.rol === 'empresa' || currentUser.user === 'Camila1') ? '' : 'none';
+  if(tabCal) tabCal.style.display = 'none';
 }
 
 // ===== DRAG & DROP KANBAN (mouse events) =====
