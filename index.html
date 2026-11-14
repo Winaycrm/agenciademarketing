@@ -4676,11 +4676,8 @@ async function guardarEvento() {
   } catch(e) { alert('Error al guardar: ' + e.message); }
 }
 
-async function eliminarEvento(id) {
-  if(!confirm('¿Eliminar este evento?')) return;
-  await fsdb.collection('eventos').doc(id).delete();
-  calEventos = calEventos.filter(e => e.id !== id);
-  renderCalendario();
+async function eliminarEventoLegacy(id) {
+  // función legacy — no usar, reemplazada por eliminarEvento en el calendario de cliente
 }
 
 function calNav(dir) {
