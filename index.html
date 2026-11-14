@@ -3464,7 +3464,7 @@ function renderCalendarioCliente() {
           ${e.notas ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">${e.notas}</div>` : ''}
           ${e._produccion ? `<div style="font-size:10px;color:#9ca3af;margin-top:2px;">📋 Producción</div>` : ''}
         </div>
-        ${e._produccion ? '' : `<button class="btn btn-danger btn-sm" onclick="eliminarEvento('${e.id}')">✕</button>`}
+        ${e._produccion || (currentUser?.rol !== 'empresa' && currentUser?.user !== 'Andrea1') ? '' : `<button class="btn btn-danger btn-sm" onclick="eliminarEvento('${e.id}')">✕</button>`}
       </div>`).join('')}
     </div>`;
   } else if(calDiaSeleccionado) {
@@ -3510,7 +3510,7 @@ function renderCalendarioCliente() {
           ${e.notas ? `<div style="font-size:11px;color:#9ca3af;margin-top:2px;">${e.notas}</div>` : ''}
           ${e._produccion ? `<div style="font-size:10px;color:#9ca3af;">📋 Producción</div>` : ''}
         </div>
-        ${e._produccion ? '' : `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarEvento('${e.id}')">✕</button>`}
+        ${e._produccion || (currentUser?.rol !== 'empresa' && currentUser?.user !== 'Andrea1') ? '' : `<button class="btn btn-danger btn-sm" onclick="event.stopPropagation();eliminarEvento('${e.id}')">✕</button>`}
       </div>`;
     }).join('');
 }
