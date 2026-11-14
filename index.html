@@ -674,6 +674,7 @@ textarea { resize: vertical; }
     <div id="mxa-st-tabla">
       <div id="mxa-wrap" style="display:flex;gap:0;">
         <div id="mxa-left" style="flex:1;min-width:0;overflow-x:auto;">
+          <div id="mxa-titulo" style="margin-bottom:12px;"></div>
           <div id="mxa-stats" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;"></div>
           <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
             <button class="btn btn-primary" onclick="mxaAbrirConcepto()">+ Concepto</button>
@@ -4926,8 +4927,8 @@ function renderPendientes() {
           <span style="font-size:10px;font-weight:700;background:#ede9ff;color:var(--accent);padding:2px 8px;border-radius:20px;">${TIPO_ICON[p._tipo]} ${TIPO_LBL[p._tipo]}</span>
           <span style="font-size:10px;font-weight:700;background:#f3f4f6;color:var(--muted);padding:2px 8px;border-radius:20px;">${p._pasoLabel}</span>
         </div>
-        <div style="font-weight:700;font-size:13px;color:${vencida?'#dc2626':esHoy?'#92400e':'var(--text)'};">${p.titulo||'Sin título'}</div>
-        ${p.copy?`<div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.copy}</div>`:''}
+        <div style="font-weight:700;font-size:13px;color:${vencida?'#dc2626':esHoy?'#92400e':'var(--text)'};">${(p.copy||p.titulo||'Sin título').substring(0,30)}${(p.copy||p.titulo||'').length>30?'…':''}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.titulo||''}</div>
         ${p.fechaLimite?`<div style="font-size:11px;font-weight:800;color:${vencida?'#dc2626':esHoy?'#b45309':'var(--accent)'};margin-top:4px;">${vencida?'⚠️ Vencida:':esHoy?'🔥 Vence hoy:':'⏰ Límite:'} ${p.fechaLimite}</div>`:''}
       </div>`;
     }
@@ -5239,7 +5240,23 @@ function renderMatrizAds() {
   else document.getElementById('mxa-panel').style.display='none';
 }
 
+function mxaEditarNombre() {
+  const actual = cl.mxNombre || '';
+  const nuevo = prompt('Nombre de esta matriz de ads:', actual);
+  if(nuevo === null) return;
+  cl.mxNombre = nuevo.trim();
+  save();
+  mxaRenderStats();
+}
 function mxaRenderStats() {
+  const tituloEl = document.getElementById('mxa-titulo');
+  if(tituloEl && cl) {
+    const nombre = cl.mxNombre || cl.nombre || '';
+    tituloEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+      <span style="font-size:20px;font-weight:900;color:var(--text);">📊 ${nombre}</span>
+      <button onclick="mxaEditarNombre()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;">✏️ Renombrar</button>
+    </div>`;
+  }
   const conceptos = mxaConceptos();
   let g=0,t=0,p=0,tot=0;
   conceptos.forEach(c=>{
@@ -5544,27 +5561,31 @@ function mxaGuardarHook() {
     if(r) {
       const asignadoAnterior = r.hook.asignado || '';
       r.hook.formato=fmt; r.hook.hook=hook; r.hook.estado=estado; r.hook.asignado=asignado; r.hook.fechaLimite=fechaLimiteHook;
-      // Si se asignó alguien nuevo (antes no había o era distinto)
+      const nomen = r.hook.nomen || '';
+      const tipoProd2 = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
+      if(!cl.produccion) cl.produccion = {};
+      if(!cl.produccion[tipoProd2]) cl.produccion[tipoProd2] = [];
+      const piezaExistente = cl.produccion[tipoProd2].find(p => p.hookId === mxaEditHookId);
+      if(piezaExistente) {
+        // Siempre actualizar fecha límite en la pieza existente
+        piezaExistente.fechaLimite = fechaLimiteHook;
+        // Si es una persona nueva, agregarla a asignados
+        if(asignado && !(piezaExistente.asignados||[]).includes(asignado)) {
+          piezaExistente.asignados = [...(piezaExistente.asignados||[]), asignado];
+        }
+      } else if(asignado) {
+        // No existe pieza, crearla
+        cl.produccion[tipoProd2].push({
+          id: uid(), titulo: `🪝 ${nomen || hook.substring(0,40)}`, copy: hook,
+          notas: `Formato: ${fmt} · Nivel: ${mxaDetNivel}`,
+          paso: 0, asignados: [asignado], fechaLimite: fechaLimiteHook,
+          fecha: new Date().toISOString().slice(0,10),
+          nomenHook: nomen, hookId: mxaEditHookId
+        });
+      }
+      // Notificar solo si se asignó alguien nuevo
       if(asignado && asignado !== asignadoAnterior) {
         const nomAsig = USUARIOS.find(u=>u.user===asignado)?.nombre||asignado;
-        const nomen = r.hook.nomen || '';
-        // Crear o actualizar pieza en producción
-        const tipoProd2 = (fmt==='video'||fmt==='ugc') ? 'video' : 'flyer';
-        if(!cl.produccion) cl.produccion = {};
-        if(!cl.produccion[tipoProd2]) cl.produccion[tipoProd2] = [];
-        const piezaExistente = cl.produccion[tipoProd2].find(p => p.hookId === mxaEditHookId);
-        if(piezaExistente) {
-          if(!(piezaExistente.asignados||[]).includes(asignado)) piezaExistente.asignados = [...(piezaExistente.asignados||[]), asignado];
-          if(fechaLimiteHook) piezaExistente.fechaLimite = fechaLimiteHook;
-        } else {
-          cl.produccion[tipoProd2].push({
-            id: uid(), titulo: `🪝 ${nomen || hook.substring(0,40)}`, copy: hook,
-            notas: `Formato: ${fmt} · Nivel: ${mxaDetNivel}`,
-            paso: 0, asignados: [asignado], fechaLimite: fechaLimiteHook,
-            fecha: new Date().toISOString().slice(0,10),
-            nomenHook: nomen, hookId: mxaEditHookId
-          });
-        }
         addNotif(`🪝 Hook asignado a ${nomAsig} · "${hook.substring(0,40)}"${fechaLimiteHook?' · Vence: '+fechaLimiteHook:''}`, 'asignacion', [asignado], `cliente:${cl.id}:matrizads`);
       }
     }
