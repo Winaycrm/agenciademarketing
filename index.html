@@ -414,7 +414,7 @@ textarea { resize: vertical; }
     <button class="main-tab" onclick="mainTab('asistencia',this)">⏰ Asistencia</button>
     <button class="main-tab" id="tab-mis-pendientes" onclick="mainTab('pendientes',this)" style="display:none;">📌 Mis Pendientes</button>
     <button class="main-tab" id="tab-calendario" onclick="mainTab('calendario',this)" style="display:none;">📅 Calendario</button>
-    <button class="main-tab empresa-only" id="tab-calgeneral" onclick="mainTab('calgeneral',this)">📅 Cal. General</button>
+    <button class="main-tab" id="tab-calgeneral" onclick="mainTab('calgeneral',this)">📅 Calendario</button>
   </div>
 
   <!-- CLIENTES -->
@@ -711,6 +711,7 @@ textarea { resize: vertical; }
       <div class="tab" onclick="tabProd('video',this)">🎬 Videos</div>
       <div class="tab" onclick="tabProd('marcaPersona',this)">👤 Marca Persona</div>
       <div class="tab" onclick="tabProd('impresion',this)">🖨️ Impresiones</div>
+      <div class="tab" onclick="tabProd('paginaWeb',this)">🌐 Página Web</div>
     </div>
     <div id="prod-flyer">
       <div class="row" style="margin-bottom:16px;"><button class="btn btn-primary" onclick="abrirNuevaPieza('flyer')">+ Nuevo Flyer</button></div>
@@ -738,6 +739,10 @@ textarea { resize: vertical; }
     <div id="prod-impresion" style="display:none;">
       <div class="row" style="margin-bottom:16px;"><button class="btn btn-primary" onclick="abrirNuevaPieza('impresion')">+ Nueva Impresión</button></div>
       <div id="kanban-impresion"></div>
+    </div>
+    <div id="prod-paginaWeb" style="display:none;">
+      <div class="row" style="margin-bottom:16px;"><button class="btn btn-primary" onclick="abrirNuevaPieza('paginaWeb')">+ Nueva Página Web</button></div>
+      <div id="kanban-paginaWeb"></div>
     </div>
   </div>
 
@@ -1168,7 +1173,17 @@ textarea { resize: vertical; }
       <div id="pz-imagen-preview"></div>
     </div>
     <div class="fg"><label>Notas</label><textarea id="pz-notas" style="min-height:60px;" placeholder="Observaciones..."></textarea></div>
-    <div class="fg">
+    <div id="pz-fechas-video" style="display:none;">
+      <div class="fg">
+        <label>🎬 Fecha límite de grabación <span style="font-weight:400;color:var(--muted);">(opcional)</span></label>
+        <input type="date" id="pz-fecha-grabacion">
+      </div>
+      <div class="fg">
+        <label>✂️ Fecha límite de edición <span style="font-weight:400;color:var(--muted);">(opcional)</span></label>
+        <input type="date" id="pz-fecha-edicion">
+      </div>
+    </div>
+    <div id="pz-fecha-general-wrap" class="fg">
       <label>📅 Fecha límite (opcional)</label>
       <input type="date" id="pz-fecha-limite">
     </div>
@@ -2381,6 +2396,7 @@ const FLUJOS = {
   video:        { pasos: ['Guión diseñado','Guión aprobado','Esperando grabación','Grabación','Edición','Corrección Camila','Aprobado cliente','Publicado'], dias: 8 },
   impresion:    { pasos: ['Copy realizado','Diseño','Corrección Camila','Aprobado cliente','Impresión'], dias: 4 },
   marcaPersona: { pasos: ['Grabación','Edición','Corrección Camila','Aprobado cliente','Publicado'], dias: 5 },
+  paginaWeb:    { pasos: ['Investigación de palabra clave','Estructura de la página web','Copy de la página web','Diseño','Programación de la página web','Correcciones','Publicada'], dias: 21 },
 };
 let piezaCtx = null;
 let prodTabActivo = 'flyer';
@@ -2390,7 +2406,7 @@ function tabProd(tipo, el) {
   prodTabActivo = tipo;
   document.querySelectorAll('#t-produccion .tabs .tab').forEach(t => t.classList.remove('active'));
   el.classList.add('active');
-  ['flyer','video','marcaPersona','impresion'].forEach(t => {
+  ['flyer','video','marcaPersona','impresion','paginaWeb'].forEach(t => {
     document.getElementById('prod-'+t).style.display = t === tipo ? 'block' : 'none';
   });
   if(tipo === 'marcaPersona') { renderMarcaPersonaTemas(); }
@@ -2815,8 +2831,8 @@ function renderTareas() {
     </div>`;
   } else {
     // Trabajador: vista plana de TODO su trabajo (todas las tareas + toda la producción de todos los clientes)
-    const TIPO_ICON = { flyer:'🖼', video:'🎥', impresion:'🖨', marcaPersona:'👤' };
-    const TIPO_LBL  = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona' };
+    const TIPO_ICON = { flyer:'🖼', video:'🎥', impresion:'🖨', marcaPersona:'👤', paginaWeb:'🌐' };
+    const TIPO_LBL  = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona', paginaWeb:'Página Web' };
     const yo = currentUser.user;
 
     // Todas mis tareas normales
@@ -2828,7 +2844,7 @@ function renderTareas() {
     const misPiezas = [];
     db.clientes.forEach(cl2 => {
       const produccion = cl2.produccion || {};
-      ['flyer','video','impresion','marcaPersona'].forEach(tipo => {
+      ['flyer','video','impresion','marcaPersona','paginaWeb'].forEach(tipo => {
         (produccion[tipo]||[]).forEach(p => {
           if((p.asignados||[]).includes(yo)) {
             const flujo = FLUJOS[tipo];
@@ -3063,10 +3079,14 @@ function abrirNuevaPieza(tipo) {
   document.getElementById('pz-copy').value = '';
   document.getElementById('pz-notas').value = '';
   document.getElementById('pz-fecha-limite').value = '';
+  document.getElementById('pz-fecha-grabacion').value = '';
+  document.getElementById('pz-fecha-edicion').value = '';
   document.getElementById('pz-imagen-preview').innerHTML = '';
-  document.getElementById('pieza-titulo').textContent =
-    tipo==='flyer'?'🖼️ Nuevo Flyer':tipo==='video'?'🎥 Nuevo Video':'🖨️ Nueva Impresión';
-  document.getElementById('pz-imagen-wrap').style.display = tipo==='video'?'none':'block';
+  const titulosModal = { flyer:'🖼️ Nuevo Flyer', video:'🎥 Nuevo Video', impresion:'🖨️ Nueva Impresión', paginaWeb:'🌐 Nueva Página Web' };
+  document.getElementById('pieza-titulo').textContent = titulosModal[tipo] || '📋 Nueva Pieza';
+  document.getElementById('pz-imagen-wrap').style.display = (tipo==='video'||tipo==='paginaWeb')?'none':'block';
+  document.getElementById('pz-fechas-video').style.display = tipo==='video'?'':'none';
+  document.getElementById('pz-fecha-general-wrap').style.display = tipo==='video'?'none':'';
   renderAsignadosCheck([]);
   abrirModal('m-pieza');
 }
@@ -3092,7 +3112,12 @@ function guardarPieza() {
   if(!cl.produccion) cl.produccion = {};
   if(!cl.produccion[tipo]) cl.produccion[tipo] = [];
   const asignados = getAsignadosSeleccionados();
-  const fechaLimite = document.getElementById('pz-fecha-limite').value || null;
+  const esVideo = tipo === 'video';
+  const fechaLimite = esVideo ? null : (document.getElementById('pz-fecha-limite').value || null);
+  const fechaGrabacion = esVideo ? (document.getElementById('pz-fecha-grabacion').value || null) : null;
+  const fechaEdicion = esVideo ? (document.getElementById('pz-fecha-edicion').value || null) : null;
+  // Para pendientes, usar la fecha de edición si existe (es la final), si no la de grabación
+  const fechaEfectiva = esVideo ? (fechaEdicion || fechaGrabacion) : fechaLimite;
 
   if(editId) {
     const pieza = cl.produccion[tipo].find(p => p.id===editId);
@@ -3101,12 +3126,13 @@ function guardarPieza() {
       pieza.titulo = titulo;
       pieza.copy = v('pz-copy');
       pieza.notas = v('pz-notas');
-      pieza.fechaLimite = fechaLimite;
+      pieza.fechaLimite = fechaEfectiva;
+      if(esVideo){ pieza.fechaGrabacion = fechaGrabacion; pieza.fechaEdicion = fechaEdicion; }
       if(imagenBase64) pieza.imagen = imagenBase64;
       // Notificar y crear tareas para nuevos asignados
       const nuevos = asignados.filter(u => !asignadosAnteriores.includes(u));
       pieza.asignados = asignados;
-      const tipoLbl2 = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona' }[tipo]||tipo;
+      const tipoLbl2 = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona', paginaWeb:'Página Web' }[tipo]||tipo;
       nuevos.forEach(u => {
         const n=USUARIOS.find(x=>x.user===u)?.nombre||u;
         addNotif(`📌 Cliente: ${cl.nombre} · ${tipoLbl2}: "${titulo}" asignado a ${n}${fechaLimite?' · Vence: '+fechaLimite:''}`, 'asignacion', [u], `cliente:${cl.id}:produccion`);
@@ -3123,9 +3149,11 @@ function guardarPieza() {
   } else {
     const nueva = { id:uid(), titulo, copy:v('pz-copy'), notas:v('pz-notas'),
       imagen: imagenBase64||null, paso:0, asignados,
-      fechaLimite, fecha: new Date().toISOString().slice(0,10) };
+      fechaLimite: fechaEfectiva,
+      ...(esVideo ? { fechaGrabacion, fechaEdicion } : {}),
+      fecha: new Date().toISOString().slice(0,10) };
     cl.produccion[tipo].push(nueva);
-    const tipoLabel = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona' }[tipo]||tipo;
+    const tipoLabel = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona', paginaWeb:'Página Web' }[tipo]||tipo;
     if(asignados.length) {
       asignados.forEach(u => { const n=USUARIOS.find(x=>x.user===u)?.nombre||u; addNotif(`🎯 Cliente: ${cl.nombre} · ${tipoLabel}: "${titulo}" asignado a ${n}${fechaLimite?' · Vence: '+fechaLimite:''}`, 'asignacion', [u], `cliente:${cl.id}:produccion`); });
     } else {
@@ -3148,13 +3176,18 @@ function editarPieza(tipo, id) {
   document.getElementById('pz-titulo').value = pieza.titulo||'';
   document.getElementById('pz-copy').value = pieza.copy||'';
   document.getElementById('pz-notas').value = pieza.notas||'';
+  const esVid = tipo === 'video';
   document.getElementById('pz-fecha-limite').value = pieza.fechaLimite||'';
+  document.getElementById('pz-fecha-grabacion').value = pieza.fechaGrabacion||'';
+  document.getElementById('pz-fecha-edicion').value = pieza.fechaEdicion||'';
+  document.getElementById('pz-fechas-video').style.display = esVid ? '' : 'none';
+  document.getElementById('pz-fecha-general-wrap').style.display = esVid ? 'none' : '';
   document.getElementById('pz-imagen-preview').innerHTML = pieza.imagen
     ? `<img src="${pieza.imagen}" style="max-width:200px;border-radius:8px;margin-top:6px;border:1px solid var(--border);">`
     : '';
-  document.getElementById('pieza-titulo').textContent =
-    '✏️ Editar ' + (tipo==='flyer'?'Flyer':tipo==='video'?'Video':'Impresión');
-  document.getElementById('pz-imagen-wrap').style.display = tipo==='video' ? 'none' : 'block';
+  const titulosEditar = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona', paginaWeb:'Página Web' };
+  document.getElementById('pieza-titulo').textContent = '✏️ Editar ' + (titulosEditar[tipo]||tipo);
+  document.getElementById('pz-imagen-wrap').style.display = (esVid||tipo==='paginaWeb') ? 'none' : 'block';
   renderAsignadosCheck(pieza.asignados||[]);
   abrirModal('m-pieza');
 }
@@ -3581,11 +3614,12 @@ function calGenObtenerEventos() {
     });
     // Producción con fechaLimite
     const prod = c.produccion || {};
-    ['marcaPersona','video','flyer','impresion'].forEach(tipo => {
+    ['marcaPersona','video','flyer','impresion','paginaWeb'].forEach(tipo => {
       (prod[tipo]||[]).forEach(p => {
         if(!p.fechaLimite) return;
         if(filtro && !(p.asignados||[]).includes(filtro)) return;
-        const icon = tipo==='video'?'🎥':tipo==='marcaPersona'?'🎬':tipo==='flyer'?'🖼️':'🖨️';
+        const iconMap = { video:'🎥', marcaPersona:'🎬', flyer:'🖼️', impresion:'🖨️', paginaWeb:'🌐' };
+        const icon = iconMap[tipo]||'📋';
         evs.push({ id:'prod_'+p.id, nombre:`${icon} ${p.titulo}`, fecha:p.fechaLimite,
           hora:'', tipo:'grabacion', notas:p.notas||'', personas:p.asignados||[],
           _cliente:c.nombre, _color:color, _tipo:'produccion' });
@@ -3849,11 +3883,12 @@ function grabObtenerEventos() {
     });
     // Items de producción asignados a Alejandro con fechaLimite
     const prod = c.produccion || {};
-    ['marcaPersona','video','flyer','impresion'].forEach(tipo => {
+    ['marcaPersona','video','flyer','impresion','paginaWeb'].forEach(tipo => {
       (prod[tipo]||[]).forEach(p => {
         if(!p.fechaLimite) return;
         if(!(p.asignados||[]).includes('Alejandro')) return;
-        const icon = tipo==='video'?'🎥':tipo==='marcaPersona'?'🎬':tipo==='flyer'?'🖼️':'🖨️';
+        const iconMap2 = { video:'🎥', marcaPersona:'🎬', flyer:'🖼️', impresion:'🖨️', paginaWeb:'🌐' };
+        const icon = iconMap2[tipo]||'📋';
         ev.push({
           id: 'prod_'+p.id, nombre: `${icon} ${p.titulo}`,
           fecha: p.fechaLimite, hora: '', tipo: 'grabacion',
@@ -4109,7 +4144,7 @@ async function limpiarTodosTrabajosTest() {
       totalPiezas += ((c.produccion || {})[tipo] || []).length;
     });
     c.tareas = [];
-    c.produccion = { flyer:[], video:[], impresion:[], marcaPersona:[] };
+    c.produccion = { flyer:[], video:[], impresion:[], marcaPersona:[], paginaWeb:[] };
   });
 
   // Guardar todos los clientes
@@ -4835,8 +4870,8 @@ function renderPendientes() {
   const c = document.getElementById('pendientes-content');
   if(!c) return;
   const yo  = currentUser?.user;
-  const TIPO_ICON = { flyer:'🖼', video:'🎥', impresion:'🖨', marcaPersona:'👤' };
-  const TIPO_LBL  = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona' };
+  const TIPO_ICON = { flyer:'🖼', video:'🎥', impresion:'🖨', marcaPersona:'👤', paginaWeb:'🌐' };
+  const TIPO_LBL  = { flyer:'Flyer', video:'Video', impresion:'Impresión', marcaPersona:'Marca Persona', paginaWeb:'Página Web' };
   const PRIOR = { alta:'🔴', media:'🟡', baja:'🟢' };
   const hoyD  = new Date(); hoyD.setHours(0,0,0,0);
 
@@ -4849,7 +4884,7 @@ function renderPendientes() {
 
     // Piezas de producción mías
     const piezas = [];
-    ['flyer','video','impresion','marcaPersona'].forEach(tipo => {
+    ['flyer','video','impresion','marcaPersona','paginaWeb'].forEach(tipo => {
       ((cl2.produccion||{})[tipo]||[]).forEach(p => {
         if((p.asignados||[]).includes(yo)) {
           const flujo = FLUJOS[tipo];
@@ -4931,7 +4966,9 @@ function renderPendientes() {
         </div>
         <div style="font-weight:700;font-size:13px;color:${vencida?'#dc2626':esHoy?'#92400e':'var(--text)'};">${(p.copy||p.titulo||'Sin título').substring(0,30)}${(p.copy||p.titulo||'').length>30?'…':''}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.titulo||''}</div>
-        ${p.fechaLimite?`<div style="font-size:11px;font-weight:800;color:${vencida?'#dc2626':esHoy?'#b45309':'var(--accent)'};margin-top:4px;">${vencida?'⚠️ Vencida:':esHoy?'🔥 Vence hoy:':'⏰ Límite:'} ${p.fechaLimite}</div>`:''}
+        ${p._tipo==='video'&&p.fechaGrabacion?`<div style="font-size:11px;font-weight:700;color:#7c3aed;margin-top:3px;">🎬 Grabar: ${p.fechaGrabacion}</div>`:''}
+        ${p._tipo==='video'&&p.fechaEdicion?`<div style="font-size:11px;font-weight:700;color:#0369a1;margin-top:2px;">✂️ Editar: ${p.fechaEdicion}</div>`:''}
+        ${p._tipo!=='video'&&p.fechaLimite?`<div style="font-size:11px;font-weight:800;color:${vencida?'#dc2626':esHoy?'#b45309':'var(--accent)'};margin-top:4px;">${vencida?'⚠️ Vencida:':esHoy?'🔥 Vence hoy:':'⏰ Límite:'} ${p.fechaLimite}</div>`:''}
       </div>`;
     }
   };
