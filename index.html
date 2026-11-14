@@ -664,6 +664,9 @@ textarea { resize: vertical; }
 
   <!-- MATRIZ ADS -->
   <div id="t-matrizads">
+    <!-- Selector de matrices -->
+    <div id="mxa-matrices-selector" style="margin-bottom:16px;"></div>
+
     <!-- Sub-tabs Matriz Ads -->
     <div class="tabs" style="margin-bottom:16px;">
       <div class="tab active" id="mxa-subtab-tabla" onclick="mxaSubTab('tabla',this)">📊 Tabla</div>
@@ -2587,7 +2590,7 @@ function abrirMpEnAds(temaId) {
   if(!t) return;
   document.getElementById('mpads-tema-txt').textContent = t.tema;
   // Poblar conceptos
-  const conceptos = cl.mxConceptos || [];
+  const conceptos = mxaConceptos();
   const sel = document.getElementById('mpads-concepto');
   if(!conceptos.length) {
     sel.innerHTML = '<option value="">— No hay conceptos en Matriz Ads —</option>';
@@ -2636,14 +2639,13 @@ async function mpGuardarEnAds() {
   const conceptoId = document.getElementById('mpads-concepto').value;
   if(conceptoId) {
     const nivel = document.getElementById('mpads-nivel').value;
-    const c = (cl.mxConceptos||[]).find(c=>c.id===conceptoId);
+    const c = mxaConceptos().find(c=>c.id===conceptoId);
     if(c) {
-      if(!cl.mxHooks) cl.mxHooks = {};
-      const existing = (cl.mxHooks[conceptoId+'_'+nivel])||[];
+      const existing = mxaHooks(conceptoId, nivel);
       const nomen = mxaBuildNomen(c, nivel, fmt, existing.length+1);
       const nuevoHook = { id:uid(), formato:fmt, hook:t.tema, estado:'pendiente', asignado,
         nomen, version:existing.length+1, listo:false, desdeMarcaPersona:true };
-      cl.mxHooks[conceptoId+'_'+nivel] = [...existing, nuevoHook];
+      mxaSetHooks(conceptoId, nivel, [...existing, nuevoHook]);
     }
   }
 
@@ -5206,18 +5208,35 @@ let mxaDetConceptoId = null;
 let mxaDetNivel      = null;
 let mxaEditConceptoId = null;
 let mxaEditHookId     = null;
+let currentMatrizId   = null;
+
+function mxaMigrar() {
+  // Si el cliente tiene datos viejos (mxConceptos/mxHooks a nivel raíz), migrar a primera matriz
+  if(!cl.matrices) {
+    const primeraNombre = cl.mxNombre || cl.nombre || 'Matriz Principal';
+    cl.matrices = [{ id: uid(), nombre: primeraNombre, mxConceptos: cl.mxConceptos||[], mxHooks: cl.mxHooks||{} }];
+    delete cl.mxConceptos; delete cl.mxHooks; delete cl.mxNombre;
+  }
+  if(!currentMatrizId || !cl.matrices.find(m=>m.id===currentMatrizId)) {
+    currentMatrizId = cl.matrices[0]?.id || null;
+  }
+}
+function currentMatriz() {
+  return (cl.matrices||[]).find(m=>m.id===currentMatrizId) || cl.matrices?.[0] || null;
+}
 
 // ---- DATA HELPERS ----
-function mxaConceptos() { return cl.mxConceptos || []; }
-function mxaHooks(cId, nivel) { return (cl.mxHooks || {})[cId+'_'+nivel] || []; }
+function mxaConceptos() { const m=currentMatriz(); return m?.mxConceptos||[]; }
+function mxaHooks(cId, nivel) { const m=currentMatriz(); return (m?.mxHooks||{})[cId+'_'+nivel]||[]; }
 function mxaSetHooks(cId, nivel, arr) {
-  if(!cl.mxHooks) cl.mxHooks = {};
-  cl.mxHooks[cId+'_'+nivel] = arr;
+  const m=currentMatriz(); if(!m) return;
+  if(!m.mxHooks) m.mxHooks = {};
+  m.mxHooks[cId+'_'+nivel] = arr;
 }
 function mxaFindHook(hId) {
-  if(!cl.mxHooks) return null;
-  for(const key in cl.mxHooks) {
-    const h = cl.mxHooks[key].find(x=>x.id===hId);
+  const m=currentMatriz(); if(!m?.mxHooks) return null;
+  for(const key in m.mxHooks) {
+    const h = m.mxHooks[key].find(x=>x.id===hId);
     if(h) return {hook:h, key};
   }
   return null;
@@ -5234,28 +5253,75 @@ function mxaBuildNomen(concepto, nivel, formato, version) {
 
 // ---- RENDER MAIN ----
 function renderMatrizAds() {
+  mxaMigrar();
+  mxaRenderMatrices();
   mxaRenderStats();
   mxaRenderTable();
   if(mxaDetConceptoId) mxaRenderPanel();
   else document.getElementById('mxa-panel').style.display='none';
 }
 
-function mxaEditarNombre() {
-  const actual = cl.mxNombre || '';
-  const nuevo = prompt('Nombre de esta matriz de ads:', actual);
-  if(nuevo === null) return;
-  cl.mxNombre = nuevo.trim();
-  save();
-  mxaRenderStats();
+function mxaRenderMatrices() {
+  const el = document.getElementById('mxa-matrices-selector');
+  if(!el || !cl.matrices) return;
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      ${cl.matrices.map(m=>`
+        <div style="display:flex;align-items:center;gap:4px;background:${m.id===currentMatrizId?'var(--accent)':'#f1f3f5'};
+          color:${m.id===currentMatrizId?'#fff':'var(--text)'};
+          border:1.5px solid ${m.id===currentMatrizId?'var(--accent)':'var(--border)'};
+          border-radius:10px;padding:6px 12px;cursor:pointer;font-weight:700;font-size:13px;"
+          onclick="mxaSeleccionarMatriz('${m.id}')">
+          📊 ${m.nombre}
+          <span onclick="event.stopPropagation();mxaRenombrarMatriz('${m.id}')"
+            style="margin-left:4px;opacity:.7;font-size:11px;cursor:pointer;" title="Renombrar">✏️</span>
+          ${cl.matrices.length>1?`<span onclick="event.stopPropagation();mxaEliminarMatriz('${m.id}')"
+            style="margin-left:2px;opacity:.7;font-size:11px;cursor:pointer;" title="Eliminar">🗑</span>`:''}
+        </div>`).join('')}
+      <button onclick="mxaNuevaMatriz()" style="background:#fff;border:1.5px dashed var(--border);
+        border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;color:var(--muted);cursor:pointer;">
+        + Nueva Matriz
+      </button>
+    </div>`;
 }
+
+function mxaSeleccionarMatriz(id) {
+  currentMatrizId = id;
+  mxaDetConceptoId = null; mxaDetNivel = null;
+  renderMatrizAds();
+}
+
+function mxaNuevaMatriz() {
+  const nombre = prompt('Nombre de la nueva matriz:', 'Matriz de ');
+  if(!nombre?.trim()) return;
+  if(!cl.matrices) cl.matrices = [];
+  const nueva = { id:uid(), nombre:nombre.trim(), mxConceptos:[], mxHooks:{} };
+  cl.matrices.push(nueva);
+  currentMatrizId = nueva.id;
+  save(); renderMatrizAds();
+}
+
+function mxaRenombrarMatriz(id) {
+  const m = cl.matrices?.find(x=>x.id===id);
+  if(!m) return;
+  const nuevo = prompt('Nuevo nombre:', m.nombre);
+  if(!nuevo?.trim()) return;
+  m.nombre = nuevo.trim();
+  save(); mxaRenderMatrices(); mxaRenderStats();
+}
+
+function mxaEliminarMatriz(id) {
+  if(!confirm('¿Eliminar esta matriz y todos sus conceptos/hooks?')) return;
+  cl.matrices = cl.matrices.filter(m=>m.id!==id);
+  if(currentMatrizId===id) currentMatrizId = cl.matrices[0]?.id||null;
+  save(); renderMatrizAds();
+}
+
 function mxaRenderStats() {
   const tituloEl = document.getElementById('mxa-titulo');
   if(tituloEl && cl) {
-    const nombre = cl.mxNombre || cl.nombre || '';
-    tituloEl.innerHTML = `<div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-      <span style="font-size:20px;font-weight:900;color:var(--text);">📊 ${nombre}</span>
-      <button onclick="mxaEditarNombre()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:3px 10px;font-size:11px;color:var(--muted);cursor:pointer;">✏️ Renombrar</button>
-    </div>`;
+    const m = currentMatriz();
+    tituloEl.innerHTML = m ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px;">${(m.mxConceptos||[]).length} conceptos · ${Object.values(m.mxHooks||{}).flat().length} hooks</div>` : '';
   }
   const conceptos = mxaConceptos();
   let g=0,t=0,p=0,tot=0;
@@ -5456,20 +5522,21 @@ function mxaGuardarConcepto() {
   const perfil = document.getElementById('mxac-perfil').value.trim();
   const deseo  = document.getElementById('mxac-deseo').value.trim();
   if(!deseo||!perfil){ alert('Completa el perfil y al menos el Deseo 1'); return; }
-  if(!cl.mxConceptos) cl.mxConceptos = [];
+  const m = currentMatriz(); if(!m) return;
+  if(!m.mxConceptos) m.mxConceptos = [];
   const angulo = document.getElementById('mxac-angulo').value.trim();
   const estado = document.getElementById('mxac-estado').value;
   const deseo2 = document.getElementById('mxac-deseo2').value.trim();
   const deseo3 = document.getElementById('mxac-deseo3').value.trim();
   if(mxaEditConceptoId) {
-    const c = cl.mxConceptos.find(x=>x.id===mxaEditConceptoId);
+    const c = m.mxConceptos.find(x=>x.id===mxaEditConceptoId);
     c.deseo = deseo; c.deseo2 = deseo2; c.deseo3 = deseo3;
     c.perfil = perfil; c.angulo = angulo; c.estado = estado;
   } else {
     // Create up to 3 concepts (one per deseo), all with same perfil
     const deseos = [deseo, deseo2, deseo3].filter(Boolean);
     deseos.forEach((d, i) => {
-      cl.mxConceptos.push({ id:uid(), deseo:d, deseo2: i===0?deseo2:'', deseo3: i===0?deseo3:'',
+      m.mxConceptos.push({ id:uid(), deseo:d, deseo2: i===0?deseo2:'', deseo3: i===0?deseo3:'',
         perfil, angulo, estado, _perfilGroup: perfil });
     });
   }
@@ -5477,8 +5544,9 @@ function mxaGuardarConcepto() {
 }
 function mxaEliminarConcepto(cId) {
   if(!confirm('¿Eliminar este concepto y todos sus hooks?')) return;
-  cl.mxConceptos = (cl.mxConceptos||[]).filter(c=>c.id!==cId);
-  if(cl.mxHooks) MXA_NIVELES.forEach(n=>{ delete cl.mxHooks[cId+'_'+n]; });
+  const m = currentMatriz(); if(!m) return;
+  m.mxConceptos = (m.mxConceptos||[]).filter(c=>c.id!==cId);
+  if(m.mxHooks) MXA_NIVELES.forEach(n=>{ delete m.mxHooks[cId+'_'+n]; });
   if(mxaDetConceptoId===cId){ mxaDetConceptoId=null; mxaDetNivel=null; }
   save(); renderMatrizAds();
 }
@@ -5619,12 +5687,12 @@ function mxaGuardarHook() {
   save(); cerrarModal('m-mxa-hook'); renderMatrizAds();
 }
 function mxaEliminarHook(hId) {
-  if(!confirm('¿Eliminar este hook? También se eliminará su tarea y pieza de producción asignada.')) return;
-  if(!cl.mxHooks) return;
+  if(!confirm('¿Eliminar este hook? También se eliminará su pieza de producción asignada.')) return;
+  const m = currentMatriz(); if(!m?.mxHooks) return;
   // 1. Borrar el hook de mxHooks
-  for(const key in cl.mxHooks) {
-    const idx = cl.mxHooks[key].findIndex(h=>h.id===hId);
-    if(idx>=0){ cl.mxHooks[key].splice(idx,1); break; }
+  for(const key in m.mxHooks) {
+    const idx = m.mxHooks[key].findIndex(h=>h.id===hId);
+    if(idx>=0){ m.mxHooks[key].splice(idx,1); break; }
   }
   // 2. Borrar tareas vinculadas a este hook
   if(cl.tareas) {
