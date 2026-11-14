@@ -5211,18 +5211,21 @@ let mxaEditHookId     = null;
 let currentMatrizId   = null;
 
 function mxaMigrar() {
-  // Si el cliente tiene datos viejos (mxConceptos/mxHooks a nivel raíz), migrar a primera matriz
-  if(!cl.matrices) {
-    const primeraNombre = cl.mxNombre || cl.nombre || 'Matriz Principal';
-    cl.matrices = [{ id: uid(), nombre: primeraNombre, mxConceptos: cl.mxConceptos||[], mxHooks: cl.mxHooks||{} }];
+  // Usar mxMatrices (distinto de "matrices" que es de Marca Persona)
+  if(!cl.mxMatrices) {
+    const primeraNombre = cl.mxNombre || 'Matriz Principal';
+    const conceptosViejos = cl.mxConceptos ? JSON.parse(JSON.stringify(cl.mxConceptos)) : [];
+    const hooksViejos = cl.mxHooks ? JSON.parse(JSON.stringify(cl.mxHooks)) : {};
+    cl.mxMatrices = [{ id: uid(), nombre: primeraNombre, mxConceptos: conceptosViejos, mxHooks: hooksViejos }];
     delete cl.mxConceptos; delete cl.mxHooks; delete cl.mxNombre;
+    save();
   }
-  if(!currentMatrizId || !cl.matrices.find(m=>m.id===currentMatrizId)) {
-    currentMatrizId = cl.matrices[0]?.id || null;
+  if(!currentMatrizId || !cl.mxMatrices.find(m=>m.id===currentMatrizId)) {
+    currentMatrizId = cl.mxMatrices[0]?.id || null;
   }
 }
 function currentMatriz() {
-  return (cl.matrices||[]).find(m=>m.id===currentMatrizId) || cl.matrices?.[0] || null;
+  return (cl.mxMatrices||[]).find(m=>m.id===currentMatrizId) || cl.mxMatrices?.[0] || null;
 }
 
 // ---- DATA HELPERS ----
@@ -5263,10 +5266,10 @@ function renderMatrizAds() {
 
 function mxaRenderMatrices() {
   const el = document.getElementById('mxa-matrices-selector');
-  if(!el || !cl.matrices) return;
+  if(!el || !cl.mxMatrices) return;
   el.innerHTML = `
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-      ${cl.matrices.map(m=>`
+      ${cl.mxMatrices.map(m=>`
         <div style="display:flex;align-items:center;gap:4px;background:${m.id===currentMatrizId?'var(--accent)':'#f1f3f5'};
           color:${m.id===currentMatrizId?'#fff':'var(--text)'};
           border:1.5px solid ${m.id===currentMatrizId?'var(--accent)':'var(--border)'};
@@ -5275,7 +5278,7 @@ function mxaRenderMatrices() {
           📊 ${m.nombre}
           <span onclick="event.stopPropagation();mxaRenombrarMatriz('${m.id}')"
             style="margin-left:4px;opacity:.7;font-size:11px;cursor:pointer;" title="Renombrar">✏️</span>
-          ${cl.matrices.length>1?`<span onclick="event.stopPropagation();mxaEliminarMatriz('${m.id}')"
+          ${cl.mxMatrices.length>1?`<span onclick="event.stopPropagation();mxaEliminarMatriz('${m.id}')"
             style="margin-left:2px;opacity:.7;font-size:11px;cursor:pointer;" title="Eliminar">🗑</span>`:''}
         </div>`).join('')}
       <button onclick="mxaNuevaMatriz()" style="background:#fff;border:1.5px dashed var(--border);
@@ -5294,15 +5297,15 @@ function mxaSeleccionarMatriz(id) {
 function mxaNuevaMatriz() {
   const nombre = prompt('Nombre de la nueva matriz:', 'Matriz de ');
   if(!nombre?.trim()) return;
-  if(!cl.matrices) cl.matrices = [];
+  if(!cl.mxMatrices) cl.mxMatrices = [];
   const nueva = { id:uid(), nombre:nombre.trim(), mxConceptos:[], mxHooks:{} };
-  cl.matrices.push(nueva);
+  cl.mxMatrices.push(nueva);
   currentMatrizId = nueva.id;
   save(); renderMatrizAds();
 }
 
 function mxaRenombrarMatriz(id) {
-  const m = cl.matrices?.find(x=>x.id===id);
+  const m = cl.mxMatrices?.find(x=>x.id===id);
   if(!m) return;
   const nuevo = prompt('Nuevo nombre:', m.nombre);
   if(!nuevo?.trim()) return;
@@ -5312,8 +5315,8 @@ function mxaRenombrarMatriz(id) {
 
 function mxaEliminarMatriz(id) {
   if(!confirm('¿Eliminar esta matriz y todos sus conceptos/hooks?')) return;
-  cl.matrices = cl.matrices.filter(m=>m.id!==id);
-  if(currentMatrizId===id) currentMatrizId = cl.matrices[0]?.id||null;
+  cl.mxMatrices = cl.mxMatrices.filter(m=>m.id!==id);
+  if(currentMatrizId===id) currentMatrizId = cl.mxMatrices[0]?.id||null;
   save(); renderMatrizAds();
 }
 
